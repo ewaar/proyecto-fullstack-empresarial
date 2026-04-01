@@ -1,0 +1,219 @@
+.dashboard-page {
+  width: 100%;
+  min-height: 100vh;
+  background-image: linear-gradient(rgba(26, 35, 58, 0.55), rgba(26, 35, 58, 0.55)),
+    url('../assets/loginFondo.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 28px;
+  margin: 0;
+}
+
+.dashboard-panel {
+  max-width: 1180px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 28px;
+  padding: 30px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.dashboard-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.dashboard-brand {
+  color: #374151;
+}
+
+.dashboard-brand h1 {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.dashboard-brand p {
+  color: #6b7280;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.dashboard-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.dashboard-user span {
+  color: #4b5563;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.dashboard-logout {
+  border: none;
+  background: linear-gradient(180deg, #ff6b6b, #e63946);
+  color: white;
+  border-radius: 999px;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.dashboard-menu {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.dashboard-menu a {
+  background: rgba(255, 255, 255, 0.78);
+  color: #374151;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-error {
+  color: #dc2626;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.dashboard-card {
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  padding: 26px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  min-height: 210px;
+}
+
+.dashboard-card h3 {
+  color: #374151;
+  margin-bottom: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.dashboard-card p {
+  color: #6b7280;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.dashboard-card strong {
+  display: block;
+  font-size: 46px;
+  color: #2563eb;
+  margin-top: 18px;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-cards {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+
+  .dashboard-brand h1 {
+    font-size: 34px;
+  }
+
+  .dashboard-card h3 {
+    font-size: 26px;
+  }
+
+  .dashboard-card strong {
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 12px;
+  }
+
+  .dashboard-panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .dashboard-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-brand h1 {
+    font-size: 28px;
+  }
+
+  .dashboard-brand p {
+    font-size: 14px;
+  }
+
+  .dashboard-user {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dashboard-user span {
+    font-size: 14px;
+  }
+
+  .dashboard-logout {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .dashboard-menu {
+    gap: 10px;
+  }
+
+  .dashboard-menu a {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .dashboard-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-card {
+    min-height: auto;
+    padding: 20px;
+  }
+
+  .dashboard-card h3 {
+    font-size: 24px;
+  }
+
+  .dashboard-card p {
+    font-size: 14px;
+  }
+
+  .dashboard-card strong {
+    font-size: 34px;
+  }
+}
