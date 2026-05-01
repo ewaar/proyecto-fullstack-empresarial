@@ -122,6 +122,40 @@ function MainLayout({ children }) {
             </Link>
           )}
 
+          {(isAdmin || isInternal || isClient) && (
+            <Link
+              to="/reports"
+              style={{
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: '700',
+                fontSize: '14px',
+                padding: '8px 14px',
+                borderRadius: '999px',
+                background: 'rgba(255,255,255,0.08)'
+              }}
+            >
+              Informes
+            </Link>
+          )}
+
+          {(isAdmin || isInternal || isClient) && (
+            <Link
+              to="/history"
+              style={{
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: '700',
+                fontSize: '14px',
+                padding: '8px 14px',
+                borderRadius: '999px',
+                background: 'rgba(255,255,255,0.08)'
+              }}
+            >
+              Historial
+            </Link>
+          )}
+
           {isAdmin && (
             <Link
               to="/users"

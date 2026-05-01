@@ -1,51 +1,34 @@
 import axios from 'axios';
 
-const API_URL = `${import.meta.env.VITE_API_URL}/users`;
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = `${BASE_URL}/users`;
 
-export const getUsers = async () => {
+const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
 
-  const response = await axios.get(API_URL, {
+  return {
     headers: {
       Authorization: `Bearer ${token}`
     }
-  });
+  };
+};
 
+export const getUsers = async () => {
+  const response = await axios.get(API_URL, getAuthHeaders());
   return response.data;
 };
 
 export const createUser = async (userData) => {
-  const token = localStorage.getItem('token');
-
-  const response = await axios.post(API_URL, userData, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
+  const response = await axios.post(API_URL, userData, getAuthHeaders());
   return response.data;
 };
 
 export const updateUser = async (id, userData) => {
-  const token = localStorage.getItem('token');
-
-  const response = await axios.put(`${API_URL}/${id}`, userData, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
+  const response = await axios.put(`${API_URL}/${id}`, userData, getAuthHeaders());
   return response.data;
 };
 
 export const deleteUser = async (id) => {
-  const token = localStorage.getItem('token');
-
-  const response = await axios.delete(`${API_URL}/${id}`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
+  const response = await axios.delete(`${API_URL}/${id}`, getAuthHeaders());
   return response.data;
 };

@@ -1,12 +1,22 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Client = require('../models/Client');
+const { createHistory } = require('../utils/historyLogger');
+
+const getUserId = (req) => {
+  return req.user?._id || req.user?.id || req.user?.userId;
+};
+
+const safe = (value, fallback = 'No definido') => {
+  if (value === null || value === undefined || value === '') return fallback;
+  return String(value);
+};
 
 const getUsers = async (req, res) => {
   try {
     const users = await User.find()
-      .populate('clientId', 'name company email')
       .select('-password')
+      .populate('clientId', 'name email company')
       .sort({ createdAt: -1 });
 
     res.json(users);
@@ -18,73 +28,104 @@ const getUsers = async (req, res) => {
   }
 };
 
-const createUserByAdmin = async (req, res) => {
+const getUserById = async (req, res) => {
   try {
+    const user = await User.findById(req.params.id)
+      .select('-password')
+      .populate('clientId', 'name email company');
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error al obtener usuario',
+      error: error.message
+    });
+  }
+};
+
+const createUser = async (req, res) => {
+  try {
+    console.log('ENTRÓ A CREATE USER');
+    console.log('USUARIO EN TOKEN:', req.user);
+    console.log('BODY RECIBIDO:', req.body);
+
     const { name, email, password, role, clientId } = req.body;
 
     if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: 'Todos los campos son obligatorios' });
+      return res.status(400).json({
+        message: 'Nombre, correo, contraseña y rol son obligatorios'
+      });
     }
 
     if (!['admin', 'user', 'client'].includes(role)) {
-      return res.status(400).json({ message: 'Rol inválido' });
+      return res.status(400).json({
+        message: 'Rol inválido'
+      });
     }
 
-    if (req.user.role === 'user' && role === 'admin') {
-      return res.status(403).json({ message: 'Un usuario normal no puede crear administradores' });
+    if (role === 'client' && !clientId) {
+      return res.status(400).json({
+        message: 'Debe seleccionar un cliente para el usuario cliente'
+      });
     }
-
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
-    }
-
-    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-
-    if (existingUser) {
-      return res.status(400).json({ message: 'El correo ya está registrado' });
-    }
-
-    let relatedClientId = null;
 
     if (role === 'client') {
-      if (!clientId) {
-        return res.status(400).json({ message: 'El cliente es obligatorio para el rol client' });
+      const clientExists = await Client.findById(clientId);
+
+      if (!clientExists) {
+        return res.status(404).json({
+          message: 'Cliente no encontrado'
+        });
       }
-
-      const existingClient = await Client.findById(clientId);
-
-      if (!existingClient) {
-        return res.status(404).json({ message: 'Cliente no encontrado' });
-      }
-
-      const clientAlreadyLinked = await User.findOne({ clientId, role: 'client' });
-
-      if (clientAlreadyLinked) {
-        return res.status(400).json({ message: 'Ese cliente ya tiene un usuario asignado' });
-      }
-
-      relatedClientId = clientId;
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const existingEmail = await User.findOne({
+      email: email.toLowerCase().trim()
+    });
+
+    if (existingEmail) {
+      return res.status(400).json({
+        message: 'Ya existe un usuario con ese correo'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       role,
-      clientId: relatedClientId
+      clientId: role === 'client' ? clientId : null
     });
 
     await newUser.save();
 
-    const populatedUser = await User.findById(newUser._id)
-      .populate('clientId', 'name company email')
-      .select('-password');
+    const userWithoutPassword = await User.findById(newUser._id)
+      .select('-password')
+      .populate('clientId', 'name email company');
+
+    await createHistory({
+      affectedUser: userWithoutPassword._id,
+      client: userWithoutPassword.clientId?._id || null,
+      user: getUserId(req),
+      action: 'Usuario creado',
+      description: `Se creó el usuario "${userWithoutPassword.name}" con rol "${userWithoutPassword.role}"`,
+      module: 'users',
+      type: 'user_created',
+      newValue: userWithoutPassword.name
+    });
 
     res.status(201).json({
       message: 'Usuario creado correctamente',
-      user: populatedUser
+      user: userWithoutPassword
     });
   } catch (error) {
     res.status(500).json({
@@ -96,12 +137,48 @@ const createUserByAdmin = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { name, email, role, status, clientId } = req.body;
+    console.log('ENTRÓ A UPDATE USER');
+    console.log('USUARIO EN TOKEN:', req.user);
+    console.log('BODY RECIBIDO:', req.body);
 
-    const userToEdit = await User.findById(req.params.id);
+    const { name, email, password, role, clientId } = req.body;
 
-    if (!userToEdit) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+    if (!name || !email || !role) {
+      return res.status(400).json({
+        message: 'Nombre, correo y rol son obligatorios'
+      });
+    }
+
+    if (!['admin', 'user', 'client'].includes(role)) {
+      return res.status(400).json({
+        message: 'Rol inválido'
+      });
+    }
+
+    if (role === 'client' && !clientId) {
+      return res.status(400).json({
+        message: 'Debe seleccionar un cliente para el usuario cliente'
+      });
+    }
+
+    if (role === 'client') {
+      const clientExists = await Client.findById(clientId);
+
+      if (!clientExists) {
+        return res.status(404).json({
+          message: 'Cliente no encontrado'
+        });
+      }
+    }
+
+    const oldUser = await User.findById(req.params.id)
+      .select('-password')
+      .populate('clientId', 'name email company');
+
+    if (!oldUser) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado'
+      });
     }
 
     const existingEmail = await User.findOne({
@@ -110,64 +187,69 @@ const updateUser = async (req, res) => {
     });
 
     if (existingEmail) {
-      return res.status(400).json({ message: 'El correo ya está registrado' });
+      return res.status(400).json({
+        message: 'Ya existe un usuario con ese correo'
+      });
     }
 
-    let newRole = userToEdit.role;
-    let newClientId = userToEdit.clientId || null;
+    const updateData = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      role,
+      clientId: role === 'client' ? clientId : null
+    };
 
-    if (req.user.role === 'admin') {
-      if (role && !['admin', 'user', 'client'].includes(role)) {
-        return res.status(400).json({ message: 'Rol inválido' });
-      }
-
-      newRole = role || userToEdit.role;
-
-      if (newRole === 'client') {
-        if (!clientId) {
-          return res.status(400).json({ message: 'El cliente es obligatorio para el rol client' });
-        }
-
-        const existingClient = await Client.findById(clientId);
-        if (!existingClient) {
-          return res.status(404).json({ message: 'Cliente no encontrado' });
-        }
-
-        const clientAlreadyLinked = await User.findOne({
-          clientId,
-          role: 'client',
-          _id: { $ne: req.params.id }
-        });
-
-        if (clientAlreadyLinked) {
-          return res.status(400).json({ message: 'Ese cliente ya tiene un usuario asignado' });
-        }
-
-        newClientId = clientId;
-      } else {
-        newClientId = null;
-      }
-    }
-
-    if (req.user.role === 'user') {
-      if (role && role !== userToEdit.role) {
-        return res.status(403).json({ message: 'Un usuario normal no puede cambiar roles' });
-      }
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      {
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        role: newRole,
-        clientId: newClientId,
-        status
-      },
+      updateData,
       { new: true, runValidators: true }
     )
-      .populate('clientId', 'name company email')
-      .select('-password');
+      .select('-password')
+      .populate('clientId', 'name email company');
+
+    const changes = [];
+
+    if (safe(oldUser.name) !== safe(updatedUser.name)) {
+      changes.push(`nombre de "${oldUser.name}" a "${updatedUser.name}"`);
+    }
+
+    if (safe(oldUser.email) !== safe(updatedUser.email)) {
+      changes.push(`correo de "${oldUser.email}" a "${updatedUser.email}"`);
+    }
+
+    if (safe(oldUser.role) !== safe(updatedUser.role)) {
+      changes.push(`rol de "${oldUser.role}" a "${updatedUser.role}"`);
+    }
+
+    const oldClientName = oldUser.clientId?.name || 'No asignado';
+    const newClientName = updatedUser.clientId?.name || 'No asignado';
+
+    if (oldClientName !== newClientName) {
+      changes.push(`cliente asociado de "${oldClientName}" a "${newClientName}"`);
+    }
+
+    if (password && password.trim() !== '') {
+      changes.push('contraseña actualizada');
+    }
+
+    if (changes.length > 0) {
+      await createHistory({
+        affectedUser: updatedUser._id,
+        client: updatedUser.clientId?._id || null,
+        user: getUserId(req),
+        action: 'Usuario actualizado',
+        description: `Se actualizó el usuario "${updatedUser.name}": ${changes.join(', ')}`,
+        module: 'users',
+        type: 'user_updated',
+        oldValue: oldUser.name,
+        newValue: updatedUser.name
+      });
+    }
 
     res.json({
       message: 'Usuario actualizado correctamente',
@@ -183,15 +265,35 @@ const updateUser = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   try {
-    const userToDelete = await User.findById(req.params.id);
+    console.log('ENTRÓ A DELETE USER');
+    console.log('USUARIO EN TOKEN:', req.user);
+
+    const userToDelete = await User.findById(req.params.id)
+      .select('-password')
+      .populate('clientId', 'name email company');
 
     if (!userToDelete) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({
+        message: 'Usuario no encontrado'
+      });
     }
 
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Solo el administrador puede eliminar usuarios' });
+    if (userToDelete._id.toString() === getUserId(req)?.toString()) {
+      return res.status(400).json({
+        message: 'No puede eliminar su propio usuario'
+      });
     }
+
+    await createHistory({
+      affectedUser: userToDelete._id,
+      client: userToDelete.clientId?._id || null,
+      user: getUserId(req),
+      action: 'Usuario eliminado',
+      description: `Se eliminó el usuario "${userToDelete.name}" con rol "${userToDelete.role}"`,
+      module: 'users',
+      type: 'user_deleted',
+      oldValue: userToDelete.name
+    });
 
     await User.findByIdAndDelete(req.params.id);
 
@@ -208,7 +310,8 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   getUsers,
-  createUserByAdmin,
+  getUserById,
+  createUser,
   updateUser,
   deleteUser
 };

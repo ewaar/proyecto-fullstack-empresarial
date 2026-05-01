@@ -40,6 +40,7 @@ function DashboardPage() {
         }
 
         const requests = [getClients(), getProjects(), getTasks()];
+
         if (isAdmin) {
           requests.push(getUsers());
         }
@@ -75,13 +76,15 @@ function DashboardPage() {
             <h1>{isClient ? 'Mi Panel' : 'Panel Principal'}</h1>
             <p>
               {isClient
-                ? 'Consulta tus proyectos y tareas asignadas'
+                ? 'Consulta tus proyectos, tareas, informes e historial'
                 : 'Resumen general del sistema empresarial'}
             </p>
           </div>
 
           <div className="dashboard-user">
-            <span>{user?.name} ({user?.role})</span>
+            <span>
+              {user?.name} ({user?.role})
+            </span>
             <button className="dashboard-logout" onClick={handleLogout}>
               Cerrar sesión
             </button>
@@ -93,6 +96,8 @@ function DashboardPage() {
           {!isClient && <Link to="/clients">Clientes</Link>}
           <Link to="/projects">{isClient ? 'Mis Proyectos' : 'Proyectos'}</Link>
           <Link to="/tasks">{isClient ? 'Mis Tareas' : 'Tareas'}</Link>
+          <Link to="/reports">Informes</Link>
+          <Link to="/history">Historial</Link>
           {isAdmin && <Link to="/users">Usuarios</Link>}
         </div>
 
@@ -109,15 +114,43 @@ function DashboardPage() {
 
           <div className="dashboard-card">
             <h3>Proyectos</h3>
-            <p>{isClient ? 'Tus proyectos asignados' : 'Proyectos empresariales creados'}</p>
+            <p>
+              {isClient
+                ? 'Tus proyectos asignados'
+                : 'Proyectos empresariales creados'}
+            </p>
             <strong>{stats.projects}</strong>
           </div>
 
           <div className="dashboard-card">
             <h3>Tareas</h3>
-            <p>{isClient ? 'Tus tareas visibles' : 'Tareas registradas y en seguimiento'}</p>
+            <p>
+              {isClient
+                ? 'Tus tareas visibles'
+                : 'Tareas registradas y en seguimiento'}
+            </p>
             <strong>{stats.tasks}</strong>
           </div>
+
+          <Link
+            to="/reports"
+            className="dashboard-card"
+            style={{ textDecoration: 'none' }}
+          >
+            <h3>Informes</h3>
+            <p>Generación de reportes PDF por proyecto</p>
+            <strong>PDF</strong>
+          </Link>
+
+          <Link
+            to="/history"
+            className="dashboard-card"
+            style={{ textDecoration: 'none' }}
+          >
+            <h3>Historial</h3>
+            <p>Movimientos, cambios y seguimiento de proyectos</p>
+            <strong>Ver</strong>
+          </Link>
 
           {isAdmin && (
             <div className="dashboard-card">

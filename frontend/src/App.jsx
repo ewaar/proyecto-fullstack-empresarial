@@ -5,6 +5,8 @@ import ClientsPage from './pages/ClientsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import TasksPage from './pages/TasksPage';
 import UsersPage from './pages/UsersPage';
+import ReportsPage from './pages/ReportsPage';
+import HistoryPage from './pages/HistoryPage';
 import PrivateRoute from './routes/PrivateRoute';
 import AdminRoute from './routes/AdminRoute';
 
@@ -45,6 +47,24 @@ function App() {
         element={
           <PrivateRoute>
             <TasksPage />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/reports"
+        element={
+          <PrivateRoute>
+            <ReportsPage />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/history"
+        element={
+          <PrivateRoute>
+            <HistoryPage />
           </PrivateRoute>
         }
       />

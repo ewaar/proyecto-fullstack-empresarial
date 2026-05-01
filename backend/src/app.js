@@ -6,6 +6,8 @@ const clientRoutes = require('./routes/clientRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const userRoutes = require('./routes/userRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const historyRoutes = require('./routes/historyRoutes');
 
 const app = express();
 
@@ -38,5 +40,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/reports', reportRoutes)
+app.use('/api/histories', historyRoutes);
 
 module.exports = app;
