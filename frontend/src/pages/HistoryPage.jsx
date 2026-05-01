@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { getProjects } from '../services/projectService';
 import { getHistories } from '../services/historyService';
+import '../styles/modules.css';
 
 function HistoryPage() {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -154,26 +155,23 @@ function HistoryPage() {
 
   return (
     <MainLayout>
-      <div
-        style={{
-          minHeight: 'calc(100vh - 80px)',
-          background: '#eef3f8',
-          padding: '30px'
-        }}
-      >
+      <div className="module-page">
         <div
           style={{
-            maxWidth: '1100px',
-            margin: '0 auto'
+            maxWidth: '1240px',
+            margin: '0 auto',
+            width: '100%',
+            padding: '30px'
           }}
         >
           <div
             style={{
-              background: 'white',
-              borderRadius: '18px',
-              padding: '24px',
-              boxShadow: '0 15px 35px rgba(15, 23, 42, 0.08)',
-              marginBottom: '22px'
+              background: 'rgba(255, 255, 255, 0.88)',
+              borderRadius: '22px',
+              padding: '28px',
+              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.16)',
+              marginBottom: '24px',
+              backdropFilter: 'blur(10px)'
             }}
           >
             <div
@@ -190,8 +188,8 @@ function HistoryPage() {
                   style={{
                     margin: 0,
                     color: '#182235',
-                    fontSize: '30px',
-                    fontWeight: '800'
+                    fontSize: '34px',
+                    fontWeight: '900'
                   }}
                 >
                   Historial automático
@@ -200,8 +198,9 @@ function HistoryPage() {
                 <p
                   style={{
                     margin: '8px 0 0',
-                    color: '#64748b',
-                    fontSize: '15px'
+                    color: '#475569',
+                    fontSize: '16px',
+                    maxWidth: '760px'
                   }}
                 >
                   Bitácora automática de movimientos realizados en clientes,
@@ -214,8 +213,8 @@ function HistoryPage() {
                   background: '#182235',
                   color: 'white',
                   borderRadius: '999px',
-                  padding: '10px 16px',
-                  fontWeight: '700',
+                  padding: '11px 18px',
+                  fontWeight: '800',
                   fontSize: '14px'
                 }}
               >
@@ -226,18 +225,20 @@ function HistoryPage() {
 
           <div
             style={{
-              background: 'white',
-              borderRadius: '18px',
-              padding: '22px',
-              boxShadow: '0 15px 35px rgba(15, 23, 42, 0.08)',
-              marginBottom: '22px'
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '22px',
+              padding: '26px',
+              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.16)',
+              marginBottom: '24px',
+              backdropFilter: 'blur(10px)'
             }}
           >
             <h2
               style={{
-                margin: '0 0 16px',
+                margin: '0 0 18px',
                 color: '#182235',
-                fontSize: '20px'
+                fontSize: '22px',
+                fontWeight: '900'
               }}
             >
               Filtros
@@ -246,16 +247,16 @@ function HistoryPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '16px'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: '18px'
               }}
             >
               <div>
                 <label
                   style={{
                     display: 'block',
-                    fontWeight: '700',
-                    marginBottom: '7px',
+                    fontWeight: '800',
+                    marginBottom: '8px',
                     color: '#334155'
                   }}
                 >
@@ -267,10 +268,12 @@ function HistoryPage() {
                   onChange={(e) => setSelectedProject(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '12px',
+                    padding: '13px 14px',
+                    borderRadius: '14px',
                     border: '1px solid #cbd5e1',
-                    outline: 'none'
+                    outline: 'none',
+                    background: 'white',
+                    fontSize: '15px'
                   }}
                 >
                   <option value="">Todos los proyectos</option>
@@ -287,8 +290,8 @@ function HistoryPage() {
                 <label
                   style={{
                     display: 'block',
-                    fontWeight: '700',
-                    marginBottom: '7px',
+                    fontWeight: '800',
+                    marginBottom: '8px',
                     color: '#334155'
                   }}
                 >
@@ -300,10 +303,12 @@ function HistoryPage() {
                   onChange={(e) => setSelectedModule(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '12px',
+                    padding: '13px 14px',
+                    borderRadius: '14px',
                     border: '1px solid #cbd5e1',
-                    outline: 'none'
+                    outline: 'none',
+                    background: 'white',
+                    fontSize: '15px'
                   }}
                 >
                   {moduleOptions.map((moduleItem) => (
@@ -318,8 +323,8 @@ function HistoryPage() {
                 <label
                   style={{
                     display: 'block',
-                    fontWeight: '700',
-                    marginBottom: '7px',
+                    fontWeight: '800',
+                    marginBottom: '8px',
                     color: '#334155'
                   }}
                 >
@@ -331,10 +336,12 @@ function HistoryPage() {
                   onChange={(e) => setSelectedType(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '12px',
+                    padding: '13px 14px',
+                    borderRadius: '14px',
                     border: '1px solid #cbd5e1',
-                    outline: 'none'
+                    outline: 'none',
+                    background: 'white',
+                    fontSize: '15px'
                   }}
                 >
                   {historyTypes.map((type) => (
@@ -352,10 +359,10 @@ function HistoryPage() {
               style={{
                 background: '#fee2e2',
                 color: '#991b1b',
-                padding: '13px 16px',
-                borderRadius: '12px',
-                fontWeight: '700',
-                marginBottom: '22px'
+                padding: '14px 18px',
+                borderRadius: '14px',
+                fontWeight: '800',
+                marginBottom: '24px'
               }}
             >
               {error}
@@ -364,10 +371,11 @@ function HistoryPage() {
 
           <div
             style={{
-              background: 'white',
-              borderRadius: '18px',
-              padding: '24px',
-              boxShadow: '0 15px 35px rgba(15, 23, 42, 0.08)'
+              background: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '22px',
+              padding: '28px',
+              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.16)',
+              backdropFilter: 'blur(10px)'
             }}
           >
             <div
@@ -377,14 +385,15 @@ function HistoryPage() {
                 gap: '12px',
                 flexWrap: 'wrap',
                 alignItems: 'center',
-                marginBottom: '20px'
+                marginBottom: '24px'
               }}
             >
               <h2
                 style={{
                   margin: 0,
                   color: '#182235',
-                  fontSize: '22px'
+                  fontSize: '24px',
+                  fontWeight: '900'
                 }}
               >
                 Línea de tiempo automática
@@ -394,10 +403,10 @@ function HistoryPage() {
                 style={{
                   background: '#e0f2fe',
                   color: '#075985',
-                  padding: '7px 12px',
+                  padding: '8px 14px',
                   borderRadius: '999px',
-                  fontWeight: '800',
-                  fontSize: '13px'
+                  fontWeight: '900',
+                  fontSize: '14px'
                 }}
               >
                 {histories.length} movimiento(s)
@@ -405,16 +414,19 @@ function HistoryPage() {
             </div>
 
             {loading ? (
-              <p style={{ color: '#64748b' }}>Cargando historial...</p>
+              <p style={{ color: '#64748b', fontWeight: '700' }}>
+                Cargando historial...
+              </p>
             ) : histories.length === 0 ? (
               <div
                 style={{
                   border: '2px dashed #cbd5e1',
-                  borderRadius: '16px',
-                  padding: '30px',
+                  borderRadius: '18px',
+                  padding: '36px',
                   textAlign: 'center',
                   color: '#64748b',
-                  fontWeight: '700'
+                  fontWeight: '800',
+                  background: 'rgba(255,255,255,0.65)'
                 }}
               >
                 No hay movimientos registrados todavía.
@@ -423,15 +435,15 @@ function HistoryPage() {
               <div
                 style={{
                   position: 'relative',
-                  paddingLeft: '28px'
+                  paddingLeft: '34px'
                 }}
               >
                 <div
                   style={{
                     position: 'absolute',
                     top: 0,
-                    left: '8px',
-                    width: '3px',
+                    left: '10px',
+                    width: '4px',
                     height: '100%',
                     background: '#dbeafe',
                     borderRadius: '999px'
@@ -446,23 +458,23 @@ function HistoryPage() {
                       key={history._id}
                       style={{
                         position: 'relative',
-                        marginBottom: '18px',
-                        background: '#f8fafc',
+                        marginBottom: '20px',
+                        background: 'rgba(248, 250, 252, 0.96)',
                         border: '1px solid #e2e8f0',
-                        borderRadius: '16px',
-                        padding: '18px 18px 18px 22px'
+                        borderRadius: '18px',
+                        padding: '20px 20px 20px 24px'
                       }}
                     >
                       <div
                         style={{
                           position: 'absolute',
-                          left: '-27px',
-                          top: '22px',
-                          width: '17px',
-                          height: '17px',
+                          left: '-35px',
+                          top: '24px',
+                          width: '19px',
+                          height: '19px',
                           borderRadius: '50%',
                           background: color,
-                          border: '3px solid white',
+                          border: '4px solid white',
                           boxShadow: '0 0 0 2px #dbeafe'
                         }}
                       />
@@ -473,7 +485,7 @@ function HistoryPage() {
                           justifyContent: 'space-between',
                           gap: '12px',
                           flexWrap: 'wrap',
-                          marginBottom: '8px'
+                          marginBottom: '10px'
                         }}
                       >
                         <div
@@ -487,9 +499,9 @@ function HistoryPage() {
                             style={{
                               background: color,
                               color: 'white',
-                              padding: '5px 10px',
+                              padding: '6px 11px',
                               borderRadius: '999px',
-                              fontWeight: '800',
+                              fontWeight: '900',
                               fontSize: '12px'
                             }}
                           >
@@ -500,9 +512,9 @@ function HistoryPage() {
                             style={{
                               background: '#e2e8f0',
                               color: '#334155',
-                              padding: '5px 10px',
+                              padding: '6px 11px',
                               borderRadius: '999px',
-                              fontWeight: '800',
+                              fontWeight: '900',
                               fontSize: '12px'
                             }}
                           >
@@ -515,7 +527,7 @@ function HistoryPage() {
                         <span
                           style={{
                             color: '#64748b',
-                            fontWeight: '700',
+                            fontWeight: '800',
                             fontSize: '13px'
                           }}
                         >
@@ -527,7 +539,8 @@ function HistoryPage() {
                         style={{
                           margin: '0 0 8px',
                           color: '#182235',
-                          fontSize: '17px'
+                          fontSize: '18px',
+                          fontWeight: '900'
                         }}
                       >
                         {history.action}
@@ -535,7 +548,7 @@ function HistoryPage() {
 
                       <p
                         style={{
-                          margin: '0 0 12px',
+                          margin: '0 0 14px',
                           color: '#334155',
                           lineHeight: '1.5'
                         }}
@@ -601,10 +614,10 @@ function HistoryPage() {
                       {(history.oldValue || history.newValue) && (
                         <div
                           style={{
-                            marginTop: '12px',
+                            marginTop: '14px',
                             background: 'white',
-                            borderRadius: '12px',
-                            padding: '10px',
+                            borderRadius: '14px',
+                            padding: '12px',
                             border: '1px solid #e2e8f0',
                             color: '#334155',
                             fontSize: '13px'
