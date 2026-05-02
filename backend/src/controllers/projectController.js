@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const Client = require('../models/Client');
+const Task = require('../models/Task');
 const { createHistory } = require('../utils/historyLogger');
 
 const validateDates = (startDate, endDate) => {
@@ -22,9 +23,6 @@ const safe = (value, fallback = 'No definido') => {
 
 const createProject = async (req, res) => {
   try {
-    console.log('ENTRÓ A CREATE PROJECT');
-    console.log('USUARIO EN TOKEN:', req.user);
-    console.log('BODY RECIBIDO:', req.body);
     const { name, description, startDate, endDate, status, client } = req.body;
 
     if (!name || !description || !startDate || !endDate || !client) {
@@ -61,15 +59,15 @@ const createProject = async (req, res) => {
     const populatedProject = await Project.findById(newProject._id).populate('client');
 
     await createHistory({
-  project: populatedProject._id,
-  client: populatedProject.client?._id,
-  user: getUserId(req),
-  action: 'Proyecto creado',
-  description: `Se creó el proyecto "${populatedProject.name}" para el cliente "${populatedProject.client?.name || 'No definido'}"`,
-  module: 'projects',
-  type: 'project_created',
-  newValue: populatedProject.name
-});
+      project: populatedProject._id,
+      client: populatedProject.client?._id,
+      user: getUserId(req),
+      action: 'Proyecto creado',
+      description: `Se creó el proyecto "${populatedProject.name}" para el cliente "${populatedProject.client?.name || 'No definido'}"`,
+      module: 'projects',
+      type: 'project_created',
+      newValue: populatedProject.name
+    });
 
     res.status(201).json({
       message: 'Proyecto creado correctamente',
@@ -239,27 +237,38 @@ const updateProject = async (req, res) => {
 
 const deleteProject = async (req, res) => {
   try {
-    const deletedProject = await Project.findByIdAndDelete(req.params.id).populate('client');
+    console.log('ENTRÓ A DELETE PROJECT');
+    console.log('ID PROYECTO:', req.params.id);
 
-    if (!deletedProject) {
+    const project = await Project.findById(req.params.id).populate('client');
+
+    if (!project) {
       return res.status(404).json({
         message: 'Proyecto no encontrado'
       });
     }
 
-    await createHistory({
-      project: deletedProject._id,
-      client: deletedProject.client?._id,
-      user: getUserId(req),
-      action: 'Proyecto eliminado',
-      description: `Se eliminó el proyecto "${deletedProject.name}"`,
-      module: 'projects',
-      type: 'project_deleted',
-      oldValue: deletedProject.name
+    const deletedTasks = await Task.deleteMany({
+      project: project._id
     });
 
+    console.log('TAREAS ELIMINADAS:', deletedTasks.deletedCount);
+
+    await createHistory({
+      project: project._id,
+      client: project.client?._id,
+      user: getUserId(req),
+      action: 'Proyecto eliminado',
+      description: `Se eliminó el proyecto "${project.name}" y ${deletedTasks.deletedCount} tarea(s) relacionada(s)`,
+      module: 'projects',
+      type: 'project_deleted',
+      oldValue: project.name
+    });
+
+    await Project.findByIdAndDelete(project._id);
+
     res.json({
-      message: 'Proyecto eliminado correctamente'
+      message: `Proyecto eliminado correctamente. También se eliminaron ${deletedTasks.deletedCount} tarea(s) relacionada(s).`
     });
   } catch (error) {
     res.status(500).json({
