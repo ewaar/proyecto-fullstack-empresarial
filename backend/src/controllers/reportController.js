@@ -1,6 +1,8 @@
 const PDFDocument = require('pdfkit');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const GeneratedReport = require('../models/GeneratedReport');
+const { createHistory } = require('../utils/historyLogger');
 
 const MARGIN = 40;
 const PRIMARY = '#0F4C97';
@@ -20,6 +22,10 @@ const GRAY_BG = '#ECEFF3';
 const GRAY_TEXT = '#5E6B78';
 const BLUE_BG = '#DCEBFF';
 const BLUE_TEXT = '#1E5FBF';
+
+const getUserId = (req) => {
+  return req.user?._id || req.user?.id || req.user?.userId;
+};
 
 const formatDate = (date) => {
   if (!date) return 'No definida';
@@ -102,7 +108,6 @@ const drawHeader = (doc, user, title) => {
 
   doc.rect(MARGIN, 30, usableWidth, 105).fill('#FFFFFF');
 
-  // Logo
   doc.rect(MARGIN + 10, 48, 48, 48).fill('#1B76D1');
 
   doc
@@ -196,11 +201,9 @@ const drawProjectsSummary = (doc, projects) => {
   drawSectionBar(doc, 'RESUMEN DE PROYECTOS');
 
   const x = MARGIN;
-  const usableWidth = doc.page.width - MARGIN * 2;
   let y = doc.y;
 
-  // Estas columnas suman exactamente el ancho útil
-  const cols = [145, 110, 85, 87, 88]; // total = 515
+  const cols = [145, 110, 85, 87, 88];
   const headers = ['Proyecto', 'Cliente', 'Estado', 'Inicio', 'Fin'];
 
   let currentX = x;
@@ -269,15 +272,10 @@ const drawProjectsSummary = (doc, projects) => {
       });
 
     doc
-      .text(
-        formatDate(project.endDate),
-        x + cols[0] + cols[1] + cols[2] + cols[3],
-        rowY + 12,
-        {
-          width: cols[4],
-          align: 'center'
-        }
-      );
+      .text(formatDate(project.endDate), x + cols[0] + cols[1] + cols[2] + cols[3], rowY + 12, {
+        width: cols[4],
+        align: 'center'
+      });
 
     y += 35;
   });
@@ -304,15 +302,6 @@ const drawGeneralSummary = (doc, projects) => {
       sum +
       project.tasks.filter((task) =>
         safe(task.status, '').toLowerCase().includes('complet')
-      ).length
-    );
-  }, 0);
-
-  const pendingTasks = projects.reduce((sum, project) => {
-    return (
-      sum +
-      project.tasks.filter((task) =>
-        safe(task.status, '').toLowerCase().includes('pend')
       ).length
     );
   }, 0);
@@ -501,8 +490,7 @@ const drawTasksTable = (doc, tasks) => {
   const usableWidth = doc.page.width - MARGIN * 2;
   let y = doc.y;
 
-  // Estas columnas también suman exactamente el ancho útil
-  const cols = [145, 90, 75, 90, 115]; // total = 515
+  const cols = [145, 90, 75, 90, 115];
   const headers = ['Tarea', 'Responsable', 'Prioridad', 'Estado', 'Progreso'];
 
   const drawHeader = () => {
@@ -644,6 +632,50 @@ const drawFooterOnAllPages = (doc) => {
   }
 };
 
+const buildProjectsPDFBuffer = async (req, projectsWithTasks, projectId) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const chunks = [];
+
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: MARGIN,
+        bufferPages: true
+      });
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      if (projectId) {
+        drawHeader(doc, req.user, 'INFORME DEL PROYECTO');
+        drawProjectsSummary(doc, [projectsWithTasks[0]]);
+        drawProjectDetail(doc, projectsWithTasks[0], projectsWithTasks[0].tasks);
+        drawTasksTable(doc, projectsWithTasks[0].tasks);
+      } else {
+        drawHeader(doc, req.user, 'INFORME GENERAL DE PROYECTOS');
+        drawProjectsSummary(doc, projectsWithTasks);
+        drawGeneralSummary(doc, projectsWithTasks);
+
+        projectsWithTasks.forEach((project) => {
+          doc.addPage();
+          doc.y = 40;
+
+          drawHeader(doc, req.user, 'DETALLE DE PROYECTO');
+          drawProjectsSummary(doc, [project]);
+          drawProjectDetail(doc, project, project.tasks);
+          drawTasksTable(doc, project.tasks);
+        });
+      }
+
+      drawFooterOnAllPages(doc);
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const generateProjectsPDF = async (req, res) => {
   try {
     const { projectId } = req.query;
@@ -681,46 +713,50 @@ const generateProjectsPDF = async (req, res) => {
       })
     );
 
-    const doc = new PDFDocument({
-      size: 'A4',
-      margin: MARGIN,
-      bufferPages: true
+    const pdfBuffer = await buildProjectsPDFBuffer(req, projectsWithTasks, projectId);
+
+    const isProjectReport = Boolean(projectId);
+    const selectedProject = isProjectReport ? projectsWithTasks[0] : null;
+
+    const reportTitle = isProjectReport
+      ? `Informe del proyecto ${selectedProject.name}`
+      : 'Informe general de proyectos';
+
+    const fileName = isProjectReport
+      ? `reporte_proyecto_${selectedProject._id}_${Date.now()}.pdf`
+      : `reporte_general_proyectos_${Date.now()}.pdf`;
+
+    const savedReport = await GeneratedReport.create({
+      title: reportTitle,
+      type: isProjectReport ? 'project' : 'general',
+      fileName,
+      contentType: 'application/pdf',
+      pdf: pdfBuffer,
+      size: pdfBuffer.length,
+      project: selectedProject?._id || null,
+      client: selectedProject?.client?._id || null,
+      user: getUserId(req)
+    });
+
+    await createHistory({
+      project: selectedProject?._id || null,
+      client: selectedProject?.client?._id || null,
+      user: getUserId(req),
+      action: 'Informe generado',
+      description: isProjectReport
+        ? `Se generó un informe PDF del proyecto "${selectedProject.name}"`
+        : 'Se generó un informe PDF general de proyectos',
+      module: 'reports',
+      type: 'report_generated',
+      newValue: reportTitle
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      projectId
-        ? 'attachment; filename=reporte_proyecto.pdf'
-        : 'attachment; filename=reporte_general_proyectos.pdf'
-    );
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('X-Report-Id', savedReport._id.toString());
 
-    doc.pipe(res);
-
-    if (projectId) {
-      drawHeader(doc, req.user, 'INFORME DEL PROYECTO');
-      drawProjectsSummary(doc, [projectsWithTasks[0]]);
-      drawProjectDetail(doc, projectsWithTasks[0], projectsWithTasks[0].tasks);
-      drawTasksTable(doc, projectsWithTasks[0].tasks);
-    } else {
-      drawHeader(doc, req.user, 'INFORME GENERAL DE PROYECTOS');
-      drawProjectsSummary(doc, projectsWithTasks);
-      drawGeneralSummary(doc, projectsWithTasks);
-
-      projectsWithTasks.forEach((project) => {
-        doc.addPage();
-        doc.y = 40;
-
-        drawHeader(doc, req.user, 'DETALLE DE PROYECTO');
-        drawProjectsSummary(doc, [project]);
-        drawProjectDetail(doc, project, project.tasks);
-        drawTasksTable(doc, project.tasks);
-      });
-    }
-
-    drawFooterOnAllPages(doc);
-
-    doc.end();
+    return res.end(pdfBuffer);
   } catch (error) {
     console.error('ERROR AL GENERAR PDF:', error);
 
@@ -731,6 +767,72 @@ const generateProjectsPDF = async (req, res) => {
   }
 };
 
+const getGeneratedReports = async (req, res) => {
+  try {
+    let filter = {};
+
+    if (req.user.role === 'client') {
+      filter.$or = [
+        { user: getUserId(req) },
+        { client: req.user.clientId }
+      ];
+    }
+
+    const reports = await GeneratedReport.find(filter)
+      .select('-pdf')
+      .populate('project', 'name status')
+      .populate('client', 'name company email')
+      .populate('user', 'name email role')
+      .sort({ createdAt: -1 });
+
+    res.json(reports);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error al obtener informes generados',
+      error: error.message
+    });
+  }
+};
+
+const downloadGeneratedReport = async (req, res) => {
+  try {
+    const report = await GeneratedReport.findById(req.params.id)
+      .populate('project', 'name')
+      .populate('client', 'name company')
+      .populate('user', 'name email role');
+
+    if (!report) {
+      return res.status(404).json({
+        message: 'Informe no encontrado'
+      });
+    }
+
+    if (req.user.role === 'client') {
+      const sameUser = report.user?._id?.toString() === getUserId(req)?.toString();
+      const sameClient = report.client?._id?.toString() === req.user.clientId?.toString();
+
+      if (!sameUser && !sameClient) {
+        return res.status(403).json({
+          message: 'No tiene permiso para descargar este informe'
+        });
+      }
+    }
+
+    res.setHeader('Content-Type', report.contentType || 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${report.fileName}`);
+    res.setHeader('Content-Length', report.pdf.length);
+
+    return res.end(report.pdf);
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error al descargar informe',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
-  generateProjectsPDF
+  generateProjectsPDF,
+  getGeneratedReports,
+  downloadGeneratedReport
 };

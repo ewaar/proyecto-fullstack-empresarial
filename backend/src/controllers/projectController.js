@@ -1,6 +1,7 @@
 const Project = require('../models/Project');
 const Client = require('../models/Client');
 const Task = require('../models/Task');
+
 const { createHistory } = require('../utils/historyLogger');
 
 const validateDates = (startDate, endDate) => {
@@ -20,6 +21,7 @@ const safe = (value, fallback = 'No definido') => {
   if (value === null || value === undefined || value === '') return fallback;
   return String(value);
 };
+
 
 const createProject = async (req, res) => {
   try {
