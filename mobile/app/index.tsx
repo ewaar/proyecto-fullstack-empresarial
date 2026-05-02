@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Alert } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, Text } from 'react-native';
 
 import LoginScreen from '../src/screens/LoginScreen';
 import DashboardScreen from '../src/screens/DashboardScreen';
@@ -10,19 +10,51 @@ import ReportsScreen from '../src/screens/ReportsScreen';
 import ClientsScreen from '../src/screens/ClientsScreen';
 import UsersScreen from '../src/screens/UsersScreen';
 
-import { loginUser } from '../src/services/authService';
-import { getProjects } from '../src/services/projectService';
-import { getTasks, updateTask } from '../src/services/taskService';
+import {
+  loginUser,
+  getStoredSession,
+  logoutUser
+} from '../src/services/authService';
+
+import {
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject
+} from '../src/services/projectService';
+
+import {
+  getTasks,
+  createTask,
+  updateTask,
+  deleteTask
+} from '../src/services/taskService';
+
 import { getHistories } from '../src/services/historyService';
-import { getClients } from '../src/services/clientService';
-import { getUsers } from '../src/services/useService';
+
+import {
+  getClients,
+  createClient,
+  updateClient,
+  deleteClient
+} from '../src/services/clientService';
+
+import {
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser
+} from '../src/services/useService';
 
 import {
   downloadGeneralProjectsReport,
-  downloadProjectReport
+  downloadProjectReport,
+  getGeneratedReports,
+  downloadGeneratedReport
 } from '../src/services/reportService';
 
 export default function AppScreen() {
+  const [checkingSession, setCheckingSession] = useState(true);
   const [screen, setScreen] = useState('login');
 
   const [user, setUser] = useState<any>(null);
@@ -38,12 +70,45 @@ export default function AppScreen() {
   const [loadingClients, setLoadingClients] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingReport, setLoadingReport] = useState('');
+  const [loadingGeneratedReports, setLoadingGeneratedReports] = useState(false);
 
   const [projects, setProjects] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [histories, setHistories] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [generatedReports, setGeneratedReports] = useState<any[]>([]);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const session = await getStoredSession();
+
+        if (session?.token && session?.user) {
+          setToken(session.token);
+          setUser(session.user);
+          setScreen('dashboard');
+        } else {
+          setScreen('login');
+        }
+      } catch (error) {
+        setScreen('login');
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  const clearData = () => {
+    setProjects([]);
+    setTasks([]);
+    setHistories([]);
+    setClients([]);
+    setUsers([]);
+    setGeneratedReports([]);
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -72,19 +137,47 @@ export default function AppScreen() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.log('Error al cerrar sesión:', error);
+    }
+
     setUser(null);
     setToken('');
     setEmail('');
     setPassword('');
-
-    setProjects([]);
-    setTasks([]);
-    setHistories([]);
-    setClients([]);
-    setUsers([]);
-
+    clearData();
     setScreen('login');
+  };
+
+  const refreshClients = async () => {
+    if (!token) return;
+
+    const data = await getClients(token);
+    setClients(data);
+  };
+
+  const refreshProjects = async () => {
+    if (!token) return;
+
+    const data = await getProjects(token);
+    setProjects(data);
+  };
+
+  const refreshTasks = async () => {
+    if (!token) return;
+
+    const data = await getTasks(token);
+    setTasks(data);
+  };
+
+  const refreshUsers = async () => {
+    if (!token) return;
+
+    const data = await getUsers(token);
+    setUsers(data);
   };
 
   const openProjects = async () => {
@@ -96,9 +189,22 @@ export default function AppScreen() {
 
       setLoadingProjects(true);
 
-      const data = await getProjects(token);
+      if (user?.role === 'client') {
+        const projectsData = await getProjects(token);
 
-      setProjects(data);
+        setProjects(projectsData);
+        setClients([]);
+        setScreen('projects');
+        return;
+      }
+
+      const [projectsData, clientsData] = await Promise.all([
+        getProjects(token),
+        getClients(token)
+      ]);
+
+      setProjects(projectsData);
+      setClients(clientsData);
       setScreen('projects');
     } catch (error: any) {
       Alert.alert(
@@ -106,6 +212,69 @@ export default function AppScreen() {
         error.response?.data?.message ||
           error.message ||
           'No se pudieron cargar los proyectos'
+      );
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  const handleCreateProject = async (projectData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingProjects(true);
+      await createProject(token, projectData);
+      await refreshProjects();
+
+      Alert.alert('Proyecto creado', 'El proyecto fue agregado correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al crear proyecto',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo crear el proyecto'
+      );
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  const handleUpdateProject = async (projectId: string, projectData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingProjects(true);
+      await updateProject(token, projectId, projectData);
+      await refreshProjects();
+
+      Alert.alert('Proyecto actualizado', 'Los cambios fueron guardados correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al actualizar proyecto',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo actualizar el proyecto'
+      );
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      if (!token) return;
+
+      setLoadingProjects(true);
+      await deleteProject(token, projectId);
+      await refreshProjects();
+
+      Alert.alert('Proyecto eliminado', 'El proyecto fue eliminado correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al eliminar proyecto',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo eliminar el proyecto'
       );
     } finally {
       setLoadingProjects(false);
@@ -121,9 +290,46 @@ export default function AppScreen() {
 
       setLoadingTasks(true);
 
-      const data = await getTasks(token);
+      if (user?.role === 'client') {
+        const [tasksData, projectsData] = await Promise.all([
+          getTasks(token),
+          getProjects(token)
+        ]);
 
-      setTasks(data);
+        setTasks(tasksData);
+        setProjects(projectsData);
+        setUsers([]);
+        setScreen('tasks');
+        return;
+      }
+
+      if (user?.role === 'user') {
+        const [tasksData, projectsData] = await Promise.all([
+          getTasks(token),
+          getProjects(token)
+        ]);
+
+        const currentUser = {
+          ...user,
+          _id: user?._id || user?.id
+        };
+
+        setTasks(tasksData);
+        setProjects(projectsData);
+        setUsers([currentUser]);
+        setScreen('tasks');
+        return;
+      }
+
+      const [tasksData, projectsData, usersData] = await Promise.all([
+        getTasks(token),
+        getProjects(token),
+        getUsers(token)
+      ]);
+
+      setTasks(tasksData);
+      setProjects(projectsData);
+      setUsers(usersData);
       setScreen('tasks');
     } catch (error: any) {
       Alert.alert(
@@ -137,18 +343,71 @@ export default function AppScreen() {
     }
   };
 
-  const refreshTasks = async () => {
-    if (!token) return;
+  const handleCreateTask = async (taskData: any) => {
+    try {
+      if (!token) return;
 
-    const data = await getTasks(token);
-    setTasks(data);
+      setLoadingTasks(true);
+      await createTask(token, taskData);
+      await refreshTasks();
+
+      Alert.alert('Tarea creada', 'La tarea fue agregada correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al crear tarea',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo crear la tarea'
+      );
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleUpdateTask = async (taskId: string, taskData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingTasks(true);
+      await updateTask(token, taskId, taskData);
+      await refreshTasks();
+
+      Alert.alert('Tarea actualizada', 'Los cambios fueron guardados correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al actualizar tarea',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo actualizar la tarea'
+      );
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      if (!token) return;
+
+      setLoadingTasks(true);
+      await deleteTask(token, taskId);
+      await refreshTasks();
+
+      Alert.alert('Tarea eliminada', 'La tarea fue eliminada correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al eliminar tarea',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo eliminar la tarea'
+      );
+    } finally {
+      setLoadingTasks(false);
+    }
   };
 
   const buildTaskPayload = (task: any, changes: any = {}) => {
-    const projectId =
-      task.project?._id ||
-      task.projectId ||
-      task.project;
+    const projectId = task.project?._id || task.projectId || task.project;
 
     const responsibleId =
       task.responsible?._id ||
@@ -248,7 +507,6 @@ export default function AppScreen() {
       }
 
       setLoadingHistory(true);
-
       const data = await getHistories(token);
 
       setHistories(data);
@@ -265,6 +523,26 @@ export default function AppScreen() {
     }
   };
 
+  const loadGeneratedReports = async () => {
+    if (!token) return;
+
+    setLoadingGeneratedReports(true);
+
+    try {
+      const data = await getGeneratedReports(token);
+      setGeneratedReports(data);
+    } catch (error: any) {
+      Alert.alert(
+        'Error al cargar informes',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudieron cargar los informes generados'
+      );
+    } finally {
+      setLoadingGeneratedReports(false);
+    }
+  };
+
   const openReports = async () => {
     try {
       if (!token) {
@@ -273,20 +551,26 @@ export default function AppScreen() {
       }
 
       setLoadingProjects(true);
+      setLoadingGeneratedReports(true);
 
-      const data = await getProjects(token);
+      const [projectsData, reportsData] = await Promise.all([
+        getProjects(token),
+        getGeneratedReports(token)
+      ]);
 
-      setProjects(data);
+      setProjects(projectsData);
+      setGeneratedReports(reportsData);
       setScreen('reports');
     } catch (error: any) {
       Alert.alert(
         'Error al cargar informes',
         error.response?.data?.message ||
           error.message ||
-          'No se pudieron cargar los proyectos para informes'
+          'No se pudieron cargar los datos de informes'
       );
     } finally {
       setLoadingProjects(false);
+      setLoadingGeneratedReports(false);
     }
   };
 
@@ -320,6 +604,73 @@ export default function AppScreen() {
     }
   };
 
+  const handleCreateClient = async (clientData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingClients(true);
+
+      await createClient(token, clientData);
+      await refreshClients();
+
+      Alert.alert('Cliente creado', 'El cliente fue agregado correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al crear cliente',
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'No se pudo crear el cliente'
+      );
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  const handleUpdateClient = async (clientId: string, clientData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingClients(true);
+
+      await updateClient(token, clientId, clientData);
+      await refreshClients();
+
+      Alert.alert('Cliente actualizado', 'Los cambios fueron guardados correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al actualizar cliente',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo actualizar el cliente'
+      );
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      if (!token) return;
+
+      setLoadingClients(true);
+
+      await deleteClient(token, clientId);
+      await refreshClients();
+
+      Alert.alert('Cliente eliminado', 'El cliente fue eliminado correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al eliminar cliente',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo eliminar el cliente'
+      );
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
   const openUsers = async () => {
     try {
       if (!token) {
@@ -334,9 +685,13 @@ export default function AppScreen() {
 
       setLoadingUsers(true);
 
-      const data = await getUsers(token);
+      const [usersData, clientsData] = await Promise.all([
+        getUsers(token),
+        getClients(token)
+      ]);
 
-      setUsers(data);
+      setUsers(usersData);
+      setClients(clientsData);
       setScreen('users');
     } catch (error: any) {
       Alert.alert(
@@ -344,6 +699,69 @@ export default function AppScreen() {
         error.response?.data?.message ||
           error.message ||
           'No se pudieron cargar los usuarios'
+      );
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleCreateUser = async (userData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingUsers(true);
+      await createUser(token, userData);
+      await refreshUsers();
+
+      Alert.alert('Usuario creado', 'El usuario fue agregado correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al crear usuario',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo crear el usuario'
+      );
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleUpdateUser = async (userId: string, userData: any) => {
+    try {
+      if (!token) return;
+
+      setLoadingUsers(true);
+      await updateUser(token, userId, userData);
+      await refreshUsers();
+
+      Alert.alert('Usuario actualizado', 'Los cambios fueron guardados correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al actualizar usuario',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo actualizar el usuario'
+      );
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      if (!token) return;
+
+      setLoadingUsers(true);
+      await deleteUser(token, userId);
+      await refreshUsers();
+
+      Alert.alert('Usuario eliminado', 'El usuario fue eliminado correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al eliminar usuario',
+        error.response?.data?.message ||
+          error.message ||
+          'No se pudo eliminar el usuario'
       );
     } finally {
       setLoadingUsers(false);
@@ -360,6 +778,9 @@ export default function AppScreen() {
       setLoadingReport('general');
 
       await downloadGeneralProjectsReport(token);
+      await loadGeneratedReports();
+
+      Alert.alert('Informe generado', 'El informe general fue generado correctamente');
     } catch (error: any) {
       Alert.alert(
         'Error al generar informe',
@@ -380,6 +801,9 @@ export default function AppScreen() {
       setLoadingReport(projectId);
 
       await downloadProjectReport(token, projectId);
+      await loadGeneratedReports();
+
+      Alert.alert('Informe generado', 'El informe del proyecto fue generado correctamente');
     } catch (error: any) {
       Alert.alert(
         'Error al generar informe',
@@ -389,6 +813,52 @@ export default function AppScreen() {
       setLoadingReport('');
     }
   };
+
+  const handleDownloadGeneratedReport = async (report: any) => {
+    try {
+      if (!token) {
+        Alert.alert('Sesión no válida', 'Inicie sesión nuevamente');
+        return;
+      }
+
+      setLoadingReport(report._id);
+
+      await downloadGeneratedReport(token, report._id, report.fileName);
+
+      Alert.alert('Informe descargado', 'El informe fue abierto correctamente');
+    } catch (error: any) {
+      Alert.alert(
+        'Error al descargar informe',
+        error.message || 'No se pudo descargar el informe'
+      );
+    } finally {
+      setLoadingReport('');
+    }
+  };
+
+  if (checkingSession) {
+    return (
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: '#0f172a',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
+        <ActivityIndicator color="#ffffff" size="large" />
+        <Text
+          style={{
+            color: '#ffffff',
+            marginTop: 14,
+            fontWeight: '800'
+          }}
+        >
+          Cargando sesión...
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   if (screen === 'login') {
     return (
@@ -423,8 +893,12 @@ export default function AppScreen() {
       <ProjectsScreen
         user={user}
         projects={projects}
+        clients={clients}
         loadingProjects={loadingProjects}
         onBack={() => setScreen('dashboard')}
+        onCreateProject={handleCreateProject}
+        onUpdateProject={handleUpdateProject}
+        onDeleteProject={handleDeleteProject}
       />
     );
   }
@@ -434,8 +908,13 @@ export default function AppScreen() {
       <TasksScreen
         user={user}
         tasks={tasks}
+        projects={projects}
+        users={users}
         loadingTasks={loadingTasks}
         onBack={() => setScreen('dashboard')}
+        onCreateTask={handleCreateTask}
+        onUpdateTask={handleUpdateTask}
+        onDeleteTask={handleDeleteTask}
         onIncreaseProgress={increaseTaskProgress}
         onChangeStatus={changeTaskStatus}
       />
@@ -457,11 +936,15 @@ export default function AppScreen() {
       <ReportsScreen
         user={user}
         projects={projects}
+        generatedReports={generatedReports}
         loadingProjects={loadingProjects}
         loadingReport={loadingReport}
+        loadingGeneratedReports={loadingGeneratedReports}
         onBack={() => setScreen('dashboard')}
         onGeneralReport={handleGeneralReport}
         onProjectReport={handleProjectReport}
+        onDownloadGeneratedReport={handleDownloadGeneratedReport}
+        onRefreshGeneratedReports={loadGeneratedReports}
       />
     );
   }
@@ -472,6 +955,9 @@ export default function AppScreen() {
         clients={clients}
         loadingClients={loadingClients}
         onBack={() => setScreen('dashboard')}
+        onCreateClient={handleCreateClient}
+        onUpdateClient={handleUpdateClient}
+        onDeleteClient={handleDeleteClient}
       />
     );
   }
@@ -480,8 +966,12 @@ export default function AppScreen() {
     return (
       <UsersScreen
         users={users}
+        clients={clients}
         loadingUsers={loadingUsers}
         onBack={() => setScreen('dashboard')}
+        onCreateUser={handleCreateUser}
+        onUpdateUser={handleUpdateUser}
+        onDeleteUser={handleDeleteUser}
       />
     );
   }

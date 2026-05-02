@@ -1,3 +1,4 @@
+import axios from 'axios';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
@@ -13,7 +14,7 @@ const downloadAndSharePDF = async (url, token, fileName) => {
   });
 
   if (downloadResult.status !== 200) {
-    throw new Error('No se pudo generar el informe PDF');
+    throw new Error('No se pudo descargar el informe PDF');
   }
 
   const canShare = await Sharing.isAvailableAsync();
@@ -35,7 +36,7 @@ export const downloadGeneralProjectsReport = async (token) => {
   return downloadAndSharePDF(
     `${API_URL}/projects/pdf`,
     token,
-    'reporte_general_proyectos.pdf'
+    `reporte_general_proyectos_${Date.now()}.pdf`
   );
 };
 
@@ -43,6 +44,24 @@ export const downloadProjectReport = async (token, projectId) => {
   return downloadAndSharePDF(
     `${API_URL}/projects/pdf?projectId=${projectId}`,
     token,
-    `reporte_proyecto_${projectId}.pdf`
+    `reporte_proyecto_${projectId}_${Date.now()}.pdf`
+  );
+};
+
+export const getGeneratedReports = async (token) => {
+  const response = await axios.get(`${API_URL}/generated`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return response.data;
+};
+
+export const downloadGeneratedReport = async (token, reportId, fileName) => {
+  return downloadAndSharePDF(
+    `${API_URL}/generated/${reportId}/download`,
+    token,
+    fileName || `informe_${reportId}.pdf`
   );
 };

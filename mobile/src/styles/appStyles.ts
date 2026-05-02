@@ -452,6 +452,121 @@ taskActionButtonText: {
   color: '#ffffff',
   fontWeight: '900',
   fontSize: 13
+},
+reportsSavedHeader: {
+  marginTop: 24,
+  marginBottom: 12,
+  gap: 10
+},
+savedReportCard: {
+  backgroundColor: '#ffffff',
+  borderRadius: 24,
+  padding: 20
+},
+savedReportButton: {
+  backgroundColor: '#ffffff',
+  borderRadius: 999,
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+  alignSelf: 'flex-start'
+},
+savedReportButtonText: {
+  color: '#182235',
+  fontWeight: '900',
+  fontSize: 13
+},
+statusOptions: {
+  flexDirection: 'row',
+  gap: 10
+},
+statusOptionButton: {
+  flex: 1,
+  backgroundColor: '#e2e8f0',
+  borderRadius: 999,
+  paddingVertical: 13,
+  alignItems: 'center'
+},
+statusOptionActive: {
+  backgroundColor: '#2563eb'
+},
+statusOptionText: {
+  color: '#334155',
+  fontWeight: '900',
+  fontSize: 14
+},
+statusOptionTextActive: {
+  color: '#ffffff'
+},
+textArea: {
+  minHeight: 90,
+  borderRadius: 18,
+  textAlignVertical: 'top'
+},
+selectList: {
+  gap: 8
+},
+selectOption: {
+  backgroundColor: '#e2e8f0',
+  borderRadius: 18,
+  paddingVertical: 12,
+  paddingHorizontal: 14
+},
+selectOptionActive: {
+  backgroundColor: '#2563eb'
+},
+selectOptionText: {
+  color: '#334155',
+  fontWeight: '900',
+  fontSize: 14
+},
+selectOptionTextActive: {
+  color: '#ffffff'
+},
+emptyMiniBox: {
+  backgroundColor: '#f1f5f9',
+  borderRadius: 16,
+  padding: 14
+},
+emptyMiniText: {
+  color: '#64748b',
+  fontWeight: '800',
+  fontSize: 13
+},
+datePickerBox: {
+  backgroundColor: '#ffffff',
+  borderRadius: 18,
+  paddingVertical: 8,
+  marginTop: 10,
+  borderWidth: 1,
+  borderColor: '#cbd5e1'
+},
+progressControls: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10
+},
+progressControlButton: {
+  flex: 1,
+  backgroundColor: '#2563eb',
+  borderRadius: 999,
+  paddingVertical: 13,
+  alignItems: 'center'
+},
+progressControlText: {
+  color: '#ffffff',
+  fontWeight: '900',
+  fontSize: 14
+},
+progressValueBox: {
+  minWidth: 90,
+  backgroundColor: '#e2e8f0',
+  borderRadius: 999,
+  paddingVertical: 13,
+  alignItems: 'center'
+},
+progressValueText: {
+  color: '#182235',
+  fontWeight: '900',
+  fontSize: 15
 }
-
 });

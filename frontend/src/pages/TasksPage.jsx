@@ -17,12 +17,16 @@ import btnEliminar from '../assets/btn-eliminar.png';
 
 function TasksPage() {
   const user = JSON.parse(localStorage.getItem('user'));
+
+  const isAdmin = user?.role === 'admin';
+  const isInternal = user?.role === 'user';
   const isClient = user?.role === 'client';
-  const canManage = user?.role === 'admin' || user?.role === 'user';
+  const canManage = isAdmin || isInternal;
 
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
+
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [editId, setEditId] = useState(null);
@@ -37,7 +41,19 @@ function TasksPage() {
     project: ''
   });
 
-  const { title, description, responsible, priority, status, progress, project } = formData;
+  const {
+    title,
+    description,
+    responsible,
+    priority,
+    status,
+    progress,
+    project
+  } = formData;
+
+  const getCurrentUserId = () => {
+    return user?._id || user?.id || '';
+  };
 
   const fetchTasks = async () => {
     try {
@@ -59,11 +75,25 @@ function TasksPage() {
 
   const fetchUsers = async () => {
     try {
-      const data = await getUsers();
-      const internalUsers = data.filter(
-        (userItem) => userItem.role === 'admin' || userItem.role === 'user'
-      );
-      setUsers(internalUsers);
+      if (isAdmin) {
+        const data = await getUsers();
+
+        const internalUsers = data.filter(
+          (userItem) => userItem.role === 'admin' || userItem.role === 'user'
+        );
+
+        setUsers(internalUsers);
+        return;
+      }
+
+      if (isInternal) {
+        setUsers([
+          {
+            ...user,
+            _id: getCurrentUserId()
+          }
+        ]);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Error al obtener usuarios');
     }
@@ -72,10 +102,25 @@ function TasksPage() {
   useEffect(() => {
     fetchTasks();
     fetchProjects();
+
     if (canManage) {
       fetchUsers();
     }
-  }, [canManage]);
+  }, []);
+
+  const resetForm = () => {
+    setEditId(null);
+
+    setFormData({
+      title: '',
+      description: '',
+      responsible: '',
+      priority: 'media',
+      status: 'pendiente',
+      progress: 0,
+      project: ''
+    });
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -92,28 +137,24 @@ function TasksPage() {
     try {
       const payload = {
         ...formData,
-        progress: Number(formData.progress)
+        progress: Number(formData.progress),
+        responsible: isInternal ? getCurrentUserId() : formData.responsible
       };
+
+      if (!payload.title || !payload.description || !payload.project || !payload.responsible) {
+        setError('Todos los campos son obligatorios');
+        return;
+      }
 
       if (editId) {
         await updateTask(editId, payload);
         setMessage('Tarea actualizada correctamente');
-        setEditId(null);
       } else {
         await createTask(payload);
         setMessage('Tarea creada correctamente');
       }
 
-      setFormData({
-        title: '',
-        description: '',
-        responsible: '',
-        priority: 'media',
-        status: 'pendiente',
-        progress: 0,
-        project: ''
-      });
-
+      resetForm();
       fetchTasks();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al guardar tarea');
@@ -122,13 +163,16 @@ function TasksPage() {
 
   const handleEdit = (task) => {
     setFormData({
-      title: task.title,
-      description: task.description,
-      responsible: task.responsible?._id || '',
-      priority: task.priority,
-      status: task.status,
-      progress: task.progress,
-      project: task.project?._id || ''
+      title: task.title || '',
+      description: task.description || '',
+      responsible:
+        task.responsible?._id ||
+        task.responsible ||
+        (isInternal ? getCurrentUserId() : ''),
+      priority: task.priority || 'media',
+      status: task.status || 'pendiente',
+      progress: task.progress || 0,
+      project: task.project?._id || task.project || ''
     });
 
     setEditId(task._id);
@@ -150,16 +194,7 @@ function TasksPage() {
   };
 
   const handleCancelEdit = () => {
-    setEditId(null);
-    setFormData({
-      title: '',
-      description: '',
-      responsible: '',
-      priority: 'media',
-      status: 'pendiente',
-      progress: 0,
-      project: ''
-    });
+    resetForm();
     setError('');
     setMessage('');
   };
@@ -182,24 +217,50 @@ function TasksPage() {
                 <div className="module-grid">
                   <div className="module-group">
                     <label>Título</label>
-                    <input type="text" name="title" placeholder="Ingrese el título" value={title} onChange={handleChange} />
+                    <input
+                      type="text"
+                      name="title"
+                      placeholder="Ingrese el título"
+                      value={title}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
                     <label>Descripción</label>
-                    <input type="text" name="description" placeholder="Ingrese la descripción" value={description} onChange={handleChange} />
+                    <input
+                      type="text"
+                      name="description"
+                      placeholder="Ingrese la descripción"
+                      value={description}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
                     <label>Responsable</label>
-                    <select name="responsible" value={responsible} onChange={handleChange}>
-                      <option value="">Seleccione un usuario</option>
-                      {users.map((userItem) => (
-                        <option key={userItem._id} value={userItem._id}>
-                          {userItem.name} - {userItem.email}
-                        </option>
-                      ))}
-                    </select>
+
+                    {isInternal ? (
+                      <input
+                        type="text"
+                        value={`${user?.name || 'Usuario interno'} - ${user?.email || ''}`}
+                        disabled
+                      />
+                    ) : (
+                      <select
+                        name="responsible"
+                        value={responsible}
+                        onChange={handleChange}
+                      >
+                        <option value="">Seleccione un usuario</option>
+
+                        {users.map((userItem) => (
+                          <option key={userItem._id} value={userItem._id}>
+                            {userItem.name} - {userItem.email}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="module-group">
@@ -216,19 +277,28 @@ function TasksPage() {
                     <select name="status" value={status} onChange={handleChange}>
                       <option value="pendiente">Pendiente</option>
                       <option value="en progreso">En progreso</option>
-                      <option value="completada">Completada</option>
+                      <option value="completado">Completado</option>
+                      <option value="cancelado">Cancelado</option>
                     </select>
                   </div>
 
                   <div className="module-group">
                     <label>Progreso</label>
-                    <input type="number" name="progress" min="0" max="100" value={progress} onChange={handleChange} />
+                    <input
+                      type="number"
+                      name="progress"
+                      min="0"
+                      max="100"
+                      value={progress}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
                     <label>Proyecto</label>
                     <select name="project" value={project} onChange={handleChange}>
                       <option value="">Seleccione un proyecto</option>
+
                       {projects.map((projectItem) => (
                         <option key={projectItem._id} value={projectItem._id}>
                           {projectItem.name}
@@ -240,11 +310,18 @@ function TasksPage() {
 
                 <div className="module-actions">
                   <button className="image-btn image-btn-add" type="submit">
-                    <img src={editId ? btnEditar : btnAgregar} alt={editId ? 'Editar' : 'Agregar'} />
+                    <img
+                      src={editId ? btnEditar : btnAgregar}
+                      alt={editId ? 'Editar' : 'Agregar'}
+                    />
                   </button>
 
                   {editId && (
-                    <button className="module-btn module-btn-secondary" type="button" onClick={handleCancelEdit}>
+                    <button
+                      className="module-btn module-btn-secondary"
+                      type="button"
+                      onClick={handleCancelEdit}
+                    >
                       Cancelar
                     </button>
                   )}
@@ -273,6 +350,7 @@ function TasksPage() {
                     {canManage && <th>Acciones</th>}
                   </tr>
                 </thead>
+
                 <tbody>
                   {tasks.map((task) => (
                     <tr key={task._id}>
@@ -283,14 +361,23 @@ function TasksPage() {
                       <td>{task.status}</td>
                       <td>{task.progress}%</td>
                       <td>{task.project?.name || 'Sin proyecto'}</td>
+
                       {canManage && (
                         <td>
                           <div className="module-actions">
-                            <button className="image-btn image-btn-edit" type="button" onClick={() => handleEdit(task)}>
+                            <button
+                              className="image-btn image-btn-edit"
+                              type="button"
+                              onClick={() => handleEdit(task)}
+                            >
                               <img src={btnEditar} alt="Editar" />
                             </button>
 
-                            <button className="image-btn image-btn-delete" type="button" onClick={() => handleDelete(task._id)}>
+                            <button
+                              className="image-btn image-btn-delete"
+                              type="button"
+                              onClick={() => handleDelete(task._id)}
+                            >
                               <img src={btnEliminar} alt="Eliminar" />
                             </button>
                           </div>

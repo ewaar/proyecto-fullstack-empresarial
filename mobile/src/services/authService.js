@@ -17,9 +17,18 @@ export const loginUser = async (email, password) => {
   return response.data;
 };
 
-export const getStoredUser = async () => {
+export const getStoredSession = async () => {
+  const token = await AsyncStorage.getItem('token');
   const user = await AsyncStorage.getItem('user');
-  return user ? JSON.parse(user) : null;
+
+  if (!token || !user) {
+    return null;
+  }
+
+  return {
+    token,
+    user: JSON.parse(user)
+  };
 };
 
 export const logoutUser = async () => {
