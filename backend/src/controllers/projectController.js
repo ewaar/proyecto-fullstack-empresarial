@@ -4,8 +4,18 @@ const Task = require('../models/Task');
 
 const { createHistory } = require('../utils/historyLogger');
 
+const allowedStatuses = ['pendiente', 'en progreso', 'finalizado'];
+
+const normalizeText = (text) => {
+  return text.trim().replace(/\s+/g, ' ');
+};
+
 const validateDates = (startDate, endDate) => {
   return new Date(endDate) >= new Date(startDate);
+};
+
+const isValidDate = (date) => {
+  return !Number.isNaN(new Date(date).getTime());
 };
 
 const getUserId = (req) => {
@@ -22,7 +32,6 @@ const safe = (value, fallback = 'No definido') => {
   return String(value);
 };
 
-
 const createProject = async (req, res) => {
   try {
     const { name, description, startDate, endDate, status, client } = req.body;
@@ -30,6 +39,24 @@ const createProject = async (req, res) => {
     if (!name || !description || !startDate || !endDate || !client) {
       return res.status(400).json({
         message: 'Todos los campos son obligatorios'
+      });
+    }
+
+    if (!isValidDate(startDate) || !isValidDate(endDate)) {
+      return res.status(400).json({
+        message: 'Las fechas ingresadas no son válidas'
+      });
+    }
+
+    if (!validateDates(startDate, endDate)) {
+      return res.status(400).json({
+        message: 'La fecha de fin no puede ser menor a la fecha de inicio'
+      });
+    }
+
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: 'Estado de proyecto no válido'
       });
     }
 
@@ -41,18 +68,26 @@ const createProject = async (req, res) => {
       });
     }
 
-    if (!validateDates(startDate, endDate)) {
+    const normalizedName = normalizeText(name);
+    const normalizedDescription = normalizeText(description);
+
+    const existingProject = await Project.findOne({
+      name: normalizedName,
+      client
+    }).collation({ locale: 'en', strength: 2 });
+
+    if (existingProject) {
       return res.status(400).json({
-        message: 'La fecha de fin no puede ser menor a la fecha de inicio'
+        message: 'Ya existe un proyecto con ese nombre para este cliente'
       });
     }
 
     const newProject = new Project({
-      name: name.trim(),
-      description: description.trim(),
+      name: normalizedName,
+      description: normalizedDescription,
       startDate,
       endDate,
-      status,
+      status: status || 'pendiente',
       client
     });
 
@@ -76,6 +111,12 @@ const createProject = async (req, res) => {
       project: populatedProject
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ya existe un proyecto con ese nombre para este cliente'
+      });
+    }
+
     res.status(500).json({
       message: 'Error al crear proyecto',
       error: error.message
@@ -142,17 +183,29 @@ const updateProject = async (req, res) => {
       });
     }
 
-    const existingClient = await Client.findById(client);
-
-    if (!existingClient) {
-      return res.status(404).json({
-        message: 'Cliente no encontrado'
+    if (!isValidDate(startDate) || !isValidDate(endDate)) {
+      return res.status(400).json({
+        message: 'Las fechas ingresadas no son válidas'
       });
     }
 
     if (!validateDates(startDate, endDate)) {
       return res.status(400).json({
         message: 'La fecha de fin no puede ser menor a la fecha de inicio'
+      });
+    }
+
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: 'Estado de proyecto no válido'
+      });
+    }
+
+    const existingClient = await Client.findById(client);
+
+    if (!existingClient) {
+      return res.status(404).json({
+        message: 'Cliente no encontrado'
       });
     }
 
@@ -164,14 +217,29 @@ const updateProject = async (req, res) => {
       });
     }
 
+    const normalizedName = normalizeText(name);
+    const normalizedDescription = normalizeText(description);
+
+    const existingProject = await Project.findOne({
+      name: normalizedName,
+      client,
+      _id: { $ne: req.params.id }
+    }).collation({ locale: 'en', strength: 2 });
+
+    if (existingProject) {
+      return res.status(400).json({
+        message: 'Ya existe un proyecto con ese nombre para este cliente'
+      });
+    }
+
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
       {
-        name: name.trim(),
-        description: description.trim(),
+        name: normalizedName,
+        description: normalizedDescription,
         startDate,
         endDate,
-        status,
+        status: status || 'pendiente',
         client
       },
       { new: true, runValidators: true }
@@ -230,6 +298,12 @@ const updateProject = async (req, res) => {
       project: updatedProject
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ya existe un proyecto con ese nombre para este cliente'
+      });
+    }
+
     res.status(500).json({
       message: 'Error al actualizar proyecto',
       error: error.message
@@ -239,9 +313,6 @@ const updateProject = async (req, res) => {
 
 const deleteProject = async (req, res) => {
   try {
-    console.log('ENTRÓ A DELETE PROJECT');
-    console.log('ID PROYECTO:', req.params.id);
-
     const project = await Project.findById(req.params.id).populate('client');
 
     if (!project) {
@@ -253,8 +324,6 @@ const deleteProject = async (req, res) => {
     const deletedTasks = await Task.deleteMany({
       project: project._id
     });
-
-    console.log('TAREAS ELIMINADAS:', deletedTasks.deletedCount);
 
     await createHistory({
       project: project._id,
