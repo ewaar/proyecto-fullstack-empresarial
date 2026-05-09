@@ -19,15 +19,27 @@ const normalizeText = (text) => {
   return text.trim().replace(/\s+/g, ' ');
 };
 
-const validateProgress = (progress) => {
+const getProgressByStatus = (status, progress) => {
   const numericProgress = Number(progress);
+
+  if (status === 'pendiente') {
+    return 0;
+  }
+
+  if (status === 'completada') {
+    return 100;
+  }
 
   if (Number.isNaN(numericProgress)) {
     return null;
   }
 
-  if (numericProgress < 0 || numericProgress > 100) {
-    return null;
+  if (status === 'en progreso') {
+    if (numericProgress <= 0 || numericProgress >= 100) {
+      return null;
+    }
+
+    return numericProgress;
   }
 
   return numericProgress;
@@ -87,9 +99,17 @@ const validateTaskData = async (data, currentTaskId = null) => {
     };
   }
 
-  const numericProgress = validateProgress(progress);
+  const finalProgress = getProgressByStatus(status, progress);
 
-  if (numericProgress === null) {
+  if (finalProgress === null) {
+    if (status === 'en progreso') {
+      return {
+        valid: false,
+        statusCode: 400,
+        message: 'Las tareas en progreso deben tener un porcentaje entre 1% y 99%'
+      };
+    }
+
     return {
       valid: false,
       statusCode: 400,
@@ -147,7 +167,7 @@ const validateTaskData = async (data, currentTaskId = null) => {
       responsible,
       priority,
       status,
-      progress: numericProgress,
+      progress: finalProgress,
       project
     },
     existingProject,

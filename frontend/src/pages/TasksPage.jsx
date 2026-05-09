@@ -122,13 +122,47 @@ function TasksPage() {
     });
   };
 
+  const getProgressByStatus = (statusValue, currentProgress = 0) => {
+    if (statusValue === 'pendiente') {
+      return 0;
+    }
+
+    if (statusValue === 'completada') {
+      return 100;
+    }
+
+    if (statusValue === 'en progreso') {
+      const progressNumber = Number(currentProgress);
+
+      if (progressNumber <= 0 || progressNumber >= 100) {
+        return 25;
+      }
+
+      return progressNumber;
+    }
+
+    return Number(currentProgress);
+  };
+
   const handleChange = (e) => {
     setError('');
     setMessage('');
 
+    const { name, value } = e.target;
+
+    if (name === 'status') {
+      setFormData({
+        ...formData,
+        status: value,
+        progress: getProgressByStatus(value, formData.progress)
+      });
+
+      return;
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
   };
 
@@ -165,8 +199,19 @@ function TasksPage() {
       return 'Estado de tarea no válido';
     }
 
-    if (Number.isNaN(payload.progress) || payload.progress < 0 || payload.progress > 100) {
-      return 'El progreso debe estar entre 0 y 100';
+    if (payload.status === 'pendiente' && Number(payload.progress) !== 0) {
+      return 'Las tareas pendientes deben tener 0% de progreso';
+    }
+
+    if (payload.status === 'completada' && Number(payload.progress) !== 100) {
+      return 'Las tareas completadas deben tener 100% de progreso';
+    }
+
+    if (
+      payload.status === 'en progreso' &&
+      (Number(payload.progress) <= 0 || Number(payload.progress) >= 100)
+    ) {
+      return 'Las tareas en progreso deben tener un porcentaje entre 1% y 99%';
     }
 
     return '';
@@ -181,7 +226,7 @@ function TasksPage() {
       ...formData,
       title: formData.title.trim(),
       description: formData.description.trim(),
-      progress: Number(formData.progress),
+      progress: getProgressByStatus(formData.status, formData.progress),
       responsible: isInternal ? getCurrentUserId() : formData.responsible
     };
 
@@ -209,6 +254,8 @@ function TasksPage() {
   };
 
   const handleEdit = (task) => {
+    const taskStatus = task.status || 'pendiente';
+
     setFormData({
       title: task.title || '',
       description: task.description || '',
@@ -217,8 +264,8 @@ function TasksPage() {
         task.responsible ||
         (isInternal ? getCurrentUserId() : ''),
       priority: task.priority || 'media',
-      status: task.status || 'pendiente',
-      progress: task.progress || 0,
+      status: taskStatus,
+      progress: getProgressByStatus(taskStatus, task.progress || 0),
       project: task.project?._id || task.project || ''
     });
 
@@ -336,14 +383,26 @@ function TasksPage() {
 
                   <div className="module-group">
                     <label>Progreso</label>
-                    <input
-                      type="number"
+                    <select
                       name="progress"
-                      min="0"
-                      max="100"
                       value={progress}
                       onChange={handleChange}
-                    />
+                      disabled={status === 'pendiente' || status === 'completada'}
+                    >
+                      {status === 'pendiente' && <option value="0">0%</option>}
+
+                      {status === 'en progreso' && (
+                        <>
+                          <option value="10">10%</option>
+                          <option value="25">25%</option>
+                          <option value="50">50%</option>
+                          <option value="75">75%</option>
+                          <option value="90">90%</option>
+                        </>
+                      )}
+
+                      {status === 'completada' && <option value="100">100%</option>}
+                    </select>
                   </div>
 
                   <div className="module-group">
