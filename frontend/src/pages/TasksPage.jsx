@@ -55,6 +55,16 @@ function TasksPage() {
     return user?._id || user?.id || '';
   };
 
+  const formatDate = (date) => {
+    if (!date) return 'Sin fecha';
+
+    return new Date(date).toLocaleDateString('es-GT', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
   const fetchTasks = async () => {
     try {
       const data = await getTasks();
@@ -123,13 +133,8 @@ function TasksPage() {
   };
 
   const getProgressByStatus = (statusValue, currentProgress = 0) => {
-    if (statusValue === 'pendiente') {
-      return 0;
-    }
-
-    if (statusValue === 'completada') {
-      return 100;
-    }
+    if (statusValue === 'pendiente') return 0;
+    if (statusValue === 'completada') return 100;
 
     if (statusValue === 'en progreso') {
       const progressNumber = Number(currentProgress);
@@ -167,29 +172,12 @@ function TasksPage() {
   };
 
   const validateForm = (payload) => {
-    if (!payload.title.trim()) {
-      return 'El título es obligatorio';
-    }
-
-    if (payload.title.trim().length < 2) {
-      return 'El título debe tener al menos 2 caracteres';
-    }
-
-    if (!payload.description.trim()) {
-      return 'La descripción es obligatoria';
-    }
-
-    if (payload.description.trim().length < 5) {
-      return 'La descripción debe tener al menos 5 caracteres';
-    }
-
-    if (!payload.project) {
-      return 'Debe seleccionar un proyecto';
-    }
-
-    if (!payload.responsible) {
-      return 'Debe seleccionar un responsable';
-    }
+    if (!payload.title.trim()) return 'El título es obligatorio';
+    if (payload.title.trim().length < 2) return 'El título debe tener al menos 2 caracteres';
+    if (!payload.description.trim()) return 'La descripción es obligatoria';
+    if (payload.description.trim().length < 5) return 'La descripción debe tener al menos 5 caracteres';
+    if (!payload.project) return 'Debe seleccionar un proyecto';
+    if (!payload.responsible) return 'Debe seleccionar un responsable';
 
     if (!['baja', 'media', 'alta'].includes(payload.priority)) {
       return 'Prioridad no válida';
@@ -240,7 +228,7 @@ function TasksPage() {
     try {
       if (editId) {
         await updateTask(editId, payload);
-        setMessage('Tarea actualizada correctamente');
+        setMessage('Seguimiento registrado correctamente');
       } else {
         await createTask(payload);
         setMessage('Tarea creada correctamente');
@@ -278,15 +266,15 @@ function TasksPage() {
     setError('');
     setMessage('');
 
-    const confirmDelete = window.confirm('¿Seguro que desea eliminar esta tarea?');
+    const confirmDelete = window.confirm(
+      '¿Seguro que desea eliminar esta tarea? También se eliminarán todos sus seguimientos.'
+    );
 
-    if (!confirmDelete) {
-      return;
-    }
+    if (!confirmDelete) return;
 
     try {
       await deleteTask(id);
-      setMessage('Tarea eliminada correctamente');
+      setMessage('Tarea y seguimientos eliminados correctamente');
       fetchTasks();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al eliminar tarea');
@@ -303,7 +291,7 @@ function TasksPage() {
     <div className="module-page">
       <MainLayout>
         <div className="module-panel">
-          <h1 className="module-title">{isClient ? 'Mis Tareas' : 'Tareas'}</h1>
+          <h1 className="module-title">{isClient ? 'Mis Tareas' : 'Tareas y Seguimientos'}</h1>
 
           <Link to="/dashboard" className="module-link">
             Volver al Dashboard
@@ -311,7 +299,7 @@ function TasksPage() {
 
           {canManage && (
             <div className="module-card">
-              <h2>{editId ? 'Editar Tarea' : 'Crear Tarea'}</h2>
+              <h2>{editId ? 'Registrar Seguimiento' : 'Crear Tarea'}</h2>
 
               <form onSubmit={handleSubmit}>
                 <div className="module-grid">
@@ -320,18 +308,16 @@ function TasksPage() {
                     <input
                       type="text"
                       name="title"
-                      placeholder="Ingrese el título"
                       value={title}
                       onChange={handleChange}
                     />
                   </div>
 
                   <div className="module-group">
-                    <label>Descripción</label>
+                    <label>Descripción / Seguimiento</label>
                     <input
                       type="text"
                       name="description"
-                      placeholder="Ingrese la descripción"
                       value={description}
                       onChange={handleChange}
                     />
@@ -347,13 +333,8 @@ function TasksPage() {
                         disabled
                       />
                     ) : (
-                      <select
-                        name="responsible"
-                        value={responsible}
-                        onChange={handleChange}
-                      >
+                      <select name="responsible" value={responsible} onChange={handleChange}>
                         <option value="">Seleccione un usuario</option>
-
                         {users.map((userItem) => (
                           <option key={userItem._id} value={userItem._id}>
                             {userItem.name} - {userItem.email}
@@ -390,7 +371,6 @@ function TasksPage() {
                       disabled={status === 'pendiente' || status === 'completada'}
                     >
                       {status === 'pendiente' && <option value="0">0%</option>}
-
                       {status === 'en progreso' && (
                         <>
                           <option value="10">10%</option>
@@ -400,7 +380,6 @@ function TasksPage() {
                           <option value="90">90%</option>
                         </>
                       )}
-
                       {status === 'completada' && <option value="100">100%</option>}
                     </select>
                   </div>
@@ -409,7 +388,6 @@ function TasksPage() {
                     <label>Proyecto</label>
                     <select name="project" value={project} onChange={handleChange}>
                       <option value="">Seleccione un proyecto</option>
-
                       {projects.map((projectItem) => (
                         <option key={projectItem._id} value={projectItem._id}>
                           {projectItem.name}
@@ -423,7 +401,7 @@ function TasksPage() {
                   <button className="image-btn image-btn-add" type="submit">
                     <img
                       src={editId ? btnEditar : btnAgregar}
-                      alt={editId ? 'Editar' : 'Agregar'}
+                      alt={editId ? 'Registrar seguimiento' : 'Agregar'}
                     />
                   </button>
 
@@ -451,13 +429,16 @@ function TasksPage() {
               <table className="module-table">
                 <thead>
                   <tr>
-                    <th>Título</th>
-                    <th>Descripción</th>
+                    <th>Tarea</th>
+                    <th>Seguimiento</th>
+                    <th>Fecha</th>
+                    <th>Versión</th>
                     <th>Responsable</th>
                     <th>Prioridad</th>
                     <th>Estado</th>
                     <th>Progreso</th>
                     <th>Proyecto</th>
+                    <th>Último</th>
                     {canManage && <th>Acciones</th>}
                   </tr>
                 </thead>
@@ -465,32 +446,41 @@ function TasksPage() {
                 <tbody>
                   {tasks.map((task) => (
                     <tr key={task._id}>
-                      <td>{task.title}</td>
+                      <td>{task.parentTask?.title || task.title}</td>
                       <td>{task.description}</td>
+                      <td>{formatDate(task.followUpDate || task.createdAt)}</td>
+                      <td>#{task.version || 1}</td>
                       <td>{task.responsible?.name || 'Sin responsable'}</td>
                       <td>{task.priority}</td>
                       <td>{task.status}</td>
                       <td>{task.progress}%</td>
                       <td>{task.project?.name || 'Sin proyecto'}</td>
+                      <td>{task.isLatest ? 'Sí' : 'No'}</td>
 
                       {canManage && (
                         <td>
                           <div className="module-actions">
-                            <button
-                              className="image-btn image-btn-edit"
-                              type="button"
-                              onClick={() => handleEdit(task)}
-                            >
-                              <img src={btnEditar} alt="Editar" />
-                            </button>
+                            {task.isLatest && task.status !== 'completada' && (
+                              <button
+                                className="image-btn image-btn-edit"
+                                type="button"
+                                onClick={() => handleEdit(task)}
+                                title="Registrar seguimiento"
+                              >
+                                <img src={btnEditar} alt="Registrar seguimiento" />
+                              </button>
+                            )}
 
-                            <button
-                              className="image-btn image-btn-delete"
-                              type="button"
-                              onClick={() => handleDelete(task._id)}
-                            >
-                              <img src={btnEliminar} alt="Eliminar" />
-                            </button>
+                            {task.isLatest && (
+                              <button
+                                className="image-btn image-btn-delete"
+                                type="button"
+                                onClick={() => handleDelete(task._id)}
+                                title="Eliminar tarea completa"
+                              >
+                                <img src={btnEliminar} alt="Eliminar" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}

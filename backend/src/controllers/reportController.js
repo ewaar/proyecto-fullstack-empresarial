@@ -23,9 +23,7 @@ const GRAY_TEXT = '#5E6B78';
 const BLUE_BG = '#DCEBFF';
 const BLUE_TEXT = '#1E5FBF';
 
-const getUserId = (req) => {
-  return req.user?._id || req.user?.id || req.user?.userId;
-};
+const getUserId = (req) => req.user?._id || req.user?.id || req.user?.userId;
 
 const formatDate = (date) => {
   if (!date) return 'No definida';
@@ -46,9 +44,8 @@ const getStatusColors = (status) => {
   const value = safe(status, '').toLowerCase();
 
   if (value.includes('complet')) return { bg: SUCCESS_BG, text: SUCCESS_TEXT };
-  if (value.includes('progreso') || value.includes('progress')) return { bg: BLUE_BG, text: BLUE_TEXT };
+  if (value.includes('progreso')) return { bg: BLUE_BG, text: BLUE_TEXT };
   if (value.includes('pend')) return { bg: GRAY_BG, text: GRAY_TEXT };
-  if (value.includes('cancel')) return { bg: DANGER_BG, text: DANGER_TEXT };
 
   return { bg: GRAY_BG, text: GRAY_TEXT };
 };
@@ -56,9 +53,9 @@ const getStatusColors = (status) => {
 const getPriorityColors = (priority) => {
   const value = safe(priority, '').toLowerCase();
 
-  if (value.includes('alta') || value.includes('high')) return { bg: DANGER_BG, text: DANGER_TEXT };
-  if (value.includes('media') || value.includes('medium')) return { bg: WARNING_BG, text: WARNING_TEXT };
-  if (value.includes('baja') || value.includes('low')) return { bg: SUCCESS_BG, text: SUCCESS_TEXT };
+  if (value.includes('alta')) return { bg: DANGER_BG, text: DANGER_TEXT };
+  if (value.includes('media')) return { bg: WARNING_BG, text: WARNING_TEXT };
+  if (value.includes('baja')) return { bg: SUCCESS_BG, text: SUCCESS_TEXT };
 
   return { bg: GRAY_BG, text: GRAY_TEXT };
 };
@@ -107,7 +104,6 @@ const drawHeader = (doc, user, title) => {
   const usableWidth = pageWidth - MARGIN * 2;
 
   doc.rect(MARGIN, 30, usableWidth, 105).fill('#FFFFFF');
-
   doc.rect(MARGIN + 10, 48, 48, 48).fill('#1B76D1');
 
   doc
@@ -147,8 +143,7 @@ const drawHeader = (doc, user, title) => {
     .font('Helvetica-Bold')
     .fontSize(22)
     .text(title, MARGIN + 270, 48, {
-      width: usableWidth - 280,
-      align: 'left'
+      width: usableWidth - 280
     });
 
   doc
@@ -159,15 +154,8 @@ const drawHeader = (doc, user, title) => {
       width: 120
     });
 
-  doc
-    .text(`Rol: ${safe(user?.role)}`, MARGIN + 390, 96, {
-      width: 70
-    });
-
-  doc
-    .text(`Fecha: ${formatDate(new Date())}`, MARGIN + 460, 96, {
-      width: 90
-    });
+  doc.text(`Rol: ${safe(user?.role)}`, MARGIN + 390, 96, { width: 70 });
+  doc.text(`Fecha: ${formatDate(new Date())}`, MARGIN + 460, 96, { width: 90 });
 
   doc
     .moveTo(MARGIN, 142)
@@ -184,9 +172,7 @@ const drawSectionBar = (doc, title) => {
 
   ensureSpace(doc, 45);
 
-  doc
-    .roundedRect(MARGIN, doc.y, usableWidth, 28, 6)
-    .fill(PRIMARY);
+  doc.roundedRect(MARGIN, doc.y, usableWidth, 28, 6).fill(PRIMARY);
 
   doc
     .fillColor('white')
@@ -202,7 +188,6 @@ const drawProjectsSummary = (doc, projects) => {
 
   const x = MARGIN;
   let y = doc.y;
-
   const cols = [145, 110, 85, 87, 88];
   const headers = ['Proyecto', 'Cliente', 'Estado', 'Inicio', 'Fin'];
 
@@ -271,11 +256,10 @@ const drawProjectsSummary = (doc, projects) => {
         align: 'center'
       });
 
-    doc
-      .text(formatDate(project.endDate), x + cols[0] + cols[1] + cols[2] + cols[3], rowY + 12, {
-        width: cols[4],
-        align: 'center'
-      });
+    doc.text(formatDate(project.endDate), x + cols[0] + cols[1] + cols[2] + cols[3], rowY + 12, {
+      width: cols[4],
+      align: 'center'
+    });
 
     y += 35;
   });
@@ -291,11 +275,7 @@ const drawGeneralSummary = (doc, projects) => {
   const usableWidth = doc.page.width - MARGIN * 2;
 
   const totalProjects = projects.length;
-
-  const totalTasks = projects.reduce(
-    (sum, project) => sum + project.tasks.length,
-    0
-  );
+  const totalTasks = projects.reduce((sum, project) => sum + project.tasks.length, 0);
 
   const completedTasks = projects.reduce((sum, project) => {
     return (
@@ -321,11 +301,7 @@ const drawGeneralSummary = (doc, projects) => {
         )
       : 0;
 
-  doc
-    .fillColor(PRIMARY_DARK)
-    .font('Helvetica-Bold')
-    .fontSize(15)
-    .text('Indicadores generales', x, y);
+  doc.fillColor(PRIMARY_DARK).font('Helvetica-Bold').fontSize(15).text('Indicadores generales', x, y);
 
   const cardY = y + 30;
   const gap = 12;
@@ -333,38 +309,17 @@ const drawGeneralSummary = (doc, projects) => {
   const cardHeight = 75;
 
   const cards = [
-    {
-      title: 'Proyectos',
-      value: totalProjects,
-      subtitle: 'registrados'
-    },
-    {
-      title: 'Tareas',
-      value: totalTasks,
-      subtitle: 'en seguimiento'
-    },
-    {
-      title: 'Completadas',
-      value: completedTasks,
-      subtitle: 'finalizadas'
-    },
-    {
-      title: 'Avance',
-      value: `${averageProgress}%`,
-      subtitle: 'promedio'
-    }
+    { title: 'Proyectos', value: totalProjects, subtitle: 'registrados' },
+    { title: 'Seguimientos', value: totalTasks, subtitle: 'registrados' },
+    { title: 'Completadas', value: completedTasks, subtitle: 'finalizadas' },
+    { title: 'Avance', value: `${averageProgress}%`, subtitle: 'promedio' }
   ];
 
   cards.forEach((card, index) => {
     const cardX = x + index * (cardWidth + gap);
 
-    doc
-      .roundedRect(cardX, cardY, cardWidth, cardHeight, 10)
-      .fillAndStroke('#FFFFFF', '#B8D0EE');
-
-    doc
-      .roundedRect(cardX, cardY, cardWidth, 10, 10)
-      .fill(PRIMARY);
+    doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 10).fillAndStroke('#FFFFFF', '#B8D0EE');
+    doc.roundedRect(cardX, cardY, cardWidth, 10, 10).fill(PRIMARY);
 
     doc
       .fillColor(PRIMARY_DARK)
@@ -394,33 +349,7 @@ const drawGeneralSummary = (doc, projects) => {
       });
   });
 
-  const boxY = cardY + cardHeight + 25;
-
-  doc
-    .roundedRect(x, boxY, usableWidth, 70, 10)
-    .fillAndStroke('#F8FBFF', '#B8D0EE');
-
-  doc
-    .fillColor(PRIMARY_DARK)
-    .font('Helvetica-Bold')
-    .fontSize(12)
-    .text('Observación del reporte', x + 15, boxY + 14);
-
-  doc
-    .fillColor(TEXT)
-    .font('Helvetica')
-    .fontSize(9)
-    .text(
-      'Este informe muestra el estado general de los proyectos registrados, incluyendo sus tareas, responsables, prioridades, estados y porcentaje de avance.',
-      x + 15,
-      boxY + 35,
-      {
-        width: usableWidth - 30,
-        lineGap: 2
-      }
-    );
-
-  doc.y = boxY + 95;
+  doc.y = cardY + cardHeight + 35;
 };
 
 const drawProjectDetail = (doc, project, tasks) => {
@@ -430,13 +359,16 @@ const drawProjectDetail = (doc, project, tasks) => {
   const y = doc.y;
   const usableWidth = doc.page.width - MARGIN * 2;
 
+  const latestTasks = tasks.filter((task) => task.isLatest);
   const averageProgress =
-    tasks.length > 0
-      ? Math.round(tasks.reduce((sum, task) => sum + (Number(task.progress) || 0), 0) / tasks.length)
+    latestTasks.length > 0
+      ? Math.round(
+          latestTasks.reduce((sum, task) => sum + (Number(task.progress) || 0), 0) /
+            latestTasks.length
+        )
       : 0;
 
   doc.roundedRect(x, y, usableWidth, 150, 8).fillAndStroke('#FFFFFF', '#B8D0EE');
-
   doc.roundedRect(x, y, usableWidth, 42, 8).fill('#EEF5FD');
 
   doc
@@ -472,128 +404,144 @@ const drawProjectDetail = (doc, project, tasks) => {
   doc.fillColor(PRIMARY_DARK).font('Helvetica-Bold').text('Progreso:', leftX, infoY);
   doc.fillColor(TEXT).font('Helvetica').text(`${averageProgress}%`, leftX + 75, infoY);
 
-  doc.fillColor(PRIMARY_DARK).font('Helvetica-Bold').text('Descripción:', rightX, infoY);
-  doc
-    .fillColor(TEXT)
-    .font('Helvetica')
-    .text(safe(project.description, 'Sin descripción'), rightX + 80, infoY, {
-      width: 170
-    });
+  doc.fillColor(PRIMARY_DARK).font('Helvetica-Bold').text('Seguimientos:', rightX, infoY);
+  doc.fillColor(TEXT).font('Helvetica').text(`${tasks.length} registro(s)`, rightX + 80, infoY);
 
   doc.y = y + 170;
 };
 
+const groupTasksByParent = (tasks) => {
+  const groups = {};
+
+  tasks.forEach((task) => {
+    const parentId = task.parentTask?._id?.toString() || task.parentTask?.toString() || task._id.toString();
+
+    if (!groups[parentId]) {
+      groups[parentId] = [];
+    }
+
+    groups[parentId].push(task);
+  });
+
+  return Object.values(groups).map((group) =>
+    group.sort((a, b) => Number(a.version || 1) - Number(b.version || 1))
+  );
+};
+
 const drawTasksTable = (doc, tasks) => {
-  drawSectionBar(doc, 'TAREAS / SEGUIMIENTO DEL PROYECTO');
+  drawSectionBar(doc, 'SEGUIMIENTO COMPLETO DE TAREAS');
 
-  const x = MARGIN;
-  const usableWidth = doc.page.width - MARGIN * 2;
-  let y = doc.y;
+  if (!tasks || tasks.length === 0) {
+    const x = MARGIN;
+    const usableWidth = doc.page.width - MARGIN * 2;
+    doc.rect(x, doc.y, usableWidth, 35).fillAndStroke('#FFFFFF', BORDER);
+    doc.fillColor(TEXT).font('Helvetica').fontSize(8).text('Este proyecto no tiene tareas registradas.', x + 8, doc.y + 12);
+    doc.y += 55;
+    return;
+  }
 
-  const cols = [145, 90, 75, 90, 115];
-  const headers = ['Tarea', 'Responsable', 'Prioridad', 'Estado', 'Progreso'];
+  const groupedTasks = groupTasksByParent(tasks);
 
-  const drawHeader = () => {
+  groupedTasks.forEach((group, groupIndex) => {
+    const mainTitle = group[0]?.title || 'Tarea sin título';
+
+    ensureSpace(doc, 50);
+
+    doc
+      .fillColor(PRIMARY_DARK)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(`Tarea ${groupIndex + 1}: ${mainTitle}`, MARGIN, doc.y + 10);
+
+    doc.y += 30;
+
+    const x = MARGIN;
+    let y = doc.y;
+    const cols = [45, 70, 135, 70, 70, 55, 70];
+    const headers = ['Ver.', 'Fecha', 'Seguimiento', 'Resp.', 'Estado', 'Avance', 'Prioridad'];
+
     let currentX = x;
 
     headers.forEach((header, i) => {
-      doc.rect(currentX, y, cols[i], 28).fillAndStroke(LIGHT_BLUE, BORDER);
+      doc.rect(currentX, y, cols[i], 26).fillAndStroke(LIGHT_BLUE, BORDER);
 
       doc
         .fillColor(PRIMARY_DARK)
         .font('Helvetica-Bold')
-        .fontSize(8)
-        .text(header, currentX + 6, y + 9, {
-          width: cols[i] - 12,
-          align: i === 0 ? 'left' : 'center'
+        .fontSize(7)
+        .text(header, currentX + 4, y + 9, {
+          width: cols[i] - 8,
+          align: i === 2 ? 'left' : 'center'
         });
 
       currentX += cols[i];
     });
 
-    y += 28;
-  };
+    y += 26;
 
-  drawHeader();
+    group.forEach((task, index) => {
+      if (y + 42 > doc.page.height - 70) {
+        doc.addPage();
+        doc.y = 40;
+        y = doc.y;
+      }
 
-  if (!tasks || tasks.length === 0) {
-    doc.rect(x, y, usableWidth, 35).fillAndStroke('#FFFFFF', BORDER);
+      const rowColor = index % 2 === 0 ? '#FFFFFF' : '#F9FBFD';
+      currentX = x;
 
-    doc
-      .fillColor(TEXT)
-      .font('Helvetica')
-      .fontSize(8)
-      .text('Este proyecto no tiene tareas registradas.', x + 8, y + 12);
-
-    doc.y = y + 55;
-    return;
-  }
-
-  tasks.forEach((task, index) => {
-    if (y + 35 > doc.page.height - 70) {
-      doc.addPage();
-      doc.y = 40;
-      y = doc.y;
-      drawSectionBar(doc, 'TAREAS / SEGUIMIENTO DEL PROYECTO');
-      y = doc.y;
-      drawHeader();
-    }
-
-    const rowColor = index % 2 === 0 ? '#FFFFFF' : '#F9FBFD';
-    let currentX = x;
-
-    cols.forEach((col) => {
-      doc.rect(currentX, y, col, 35).fillAndStroke(rowColor, BORDER);
-      currentX += col;
-    });
-
-    doc
-      .fillColor(TEXT)
-      .font('Helvetica-Bold')
-      .fontSize(8)
-      .text(truncate(task.title, 24), x + 6, y + 12, {
-        width: cols[0] - 12
+      cols.forEach((col) => {
+        doc.rect(currentX, y, col, 42).fillAndStroke(rowColor, BORDER);
+        currentX += col;
       });
 
-    doc
-      .fillColor(TEXT)
-      .font('Helvetica')
-      .fontSize(8)
-      .text(truncate(task.responsible?.name, 15), x + cols[0] + 6, y + 12, {
-        width: cols[1] - 12,
+      doc.fillColor(TEXT).font('Helvetica-Bold').fontSize(7).text(`#${task.version || 1}`, x + 4, y + 14, {
+        width: cols[0] - 8,
         align: 'center'
       });
 
-    drawBadge(
-      doc,
-      x + cols[0] + cols[1] + 10,
-      y + 9,
-      safe(task.priority),
-      getPriorityColors(task.priority),
-      55
-    );
+      doc.fillColor(TEXT).font('Helvetica').fontSize(7).text(formatDate(task.followUpDate || task.createdAt), x + cols[0] + 4, y + 14, {
+        width: cols[1] - 8,
+        align: 'center'
+      });
 
-    drawBadge(
-      doc,
-      x + cols[0] + cols[1] + cols[2] + 10,
-      y + 9,
-      safe(task.status),
-      getStatusColors(task.status),
-      70
-    );
+      doc.fillColor(TEXT).font('Helvetica').fontSize(7).text(truncate(task.description, 55), x + cols[0] + cols[1] + 4, y + 9, {
+        width: cols[2] - 8,
+        height: 28
+      });
 
-    drawProgressBar(
-      doc,
-      x + cols[0] + cols[1] + cols[2] + cols[3] + 42,
-      y + 12,
-      task.progress,
-      65
-    );
+      doc.fillColor(TEXT).font('Helvetica').fontSize(7).text(truncate(task.responsible?.name, 12), x + cols[0] + cols[1] + cols[2] + 4, y + 14, {
+        width: cols[3] - 8,
+        align: 'center'
+      });
 
-    y += 35;
+      drawBadge(
+        doc,
+        x + cols[0] + cols[1] + cols[2] + cols[3] + 6,
+        y + 12,
+        safe(task.status),
+        getStatusColors(task.status),
+        58
+      );
+
+      doc.fillColor(TEXT).font('Helvetica-Bold').fontSize(8).text(`${task.progress}%`, x + cols[0] + cols[1] + cols[2] + cols[3] + cols[4] + 4, y + 15, {
+        width: cols[5] - 8,
+        align: 'center'
+      });
+
+      drawBadge(
+        doc,
+        x + cols[0] + cols[1] + cols[2] + cols[3] + cols[4] + cols[5] + 7,
+        y + 12,
+        safe(task.priority),
+        getPriorityColors(task.priority),
+        56
+      );
+
+      y += 42;
+    });
+
+    doc.y = y + 18;
   });
-
-  doc.y = y + 22;
 };
 
 const drawFooterOnAllPages = (doc) => {
@@ -614,9 +562,7 @@ const drawFooterOnAllPages = (doc) => {
       .lineWidth(1)
       .stroke();
 
-    doc
-      .circle(doc.page.width / 2, footerLineY, 2.5)
-      .fill(PRIMARY);
+    doc.circle(doc.page.width / 2, footerLineY, 2.5).fill(PRIMARY);
 
     doc
       .fillColor(PRIMARY_DARK)
@@ -680,7 +626,7 @@ const generateProjectsPDF = async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    let projectFilter = {};
+    const projectFilter = {};
 
     if (req.user.role === 'client') {
       projectFilter.client = req.user.clientId;
@@ -690,9 +636,7 @@ const generateProjectsPDF = async (req, res) => {
       projectFilter._id = projectId;
     }
 
-    const projects = await Project.find(projectFilter)
-      .populate('client')
-      .sort({ createdAt: -1 });
+    const projects = await Project.find(projectFilter).populate('client').sort({ createdAt: -1 });
 
     if (!projects || projects.length === 0) {
       return res.status(404).json({
@@ -704,7 +648,9 @@ const generateProjectsPDF = async (req, res) => {
       projects.map(async (project) => {
         const tasks = await Task.find({ project: project._id })
           .populate('responsible', 'name email role')
-          .sort({ createdAt: -1 });
+          .populate('parentTask', 'title')
+          .populate('previousTask', 'title status progress version followUpDate')
+          .sort({ parentTask: 1, version: 1, followUpDate: 1 });
 
         return {
           ...project.toObject(),
@@ -744,8 +690,8 @@ const generateProjectsPDF = async (req, res) => {
       user: getUserId(req),
       action: 'Informe generado',
       description: isProjectReport
-        ? `Se generó un informe PDF del proyecto "${selectedProject.name}"`
-        : 'Se generó un informe PDF general de proyectos',
+        ? `Se generó un informe PDF del proyecto "${selectedProject.name}" con el seguimiento completo de tareas`
+        : 'Se generó un informe PDF general de proyectos con seguimiento completo de tareas',
       module: 'reports',
       type: 'report_generated',
       newValue: reportTitle
@@ -769,13 +715,10 @@ const generateProjectsPDF = async (req, res) => {
 
 const getGeneratedReports = async (req, res) => {
   try {
-    let filter = {};
+    const filter = {};
 
     if (req.user.role === 'client') {
-      filter.$or = [
-        { user: getUserId(req) },
-        { client: req.user.clientId }
-      ];
+      filter.$or = [{ user: getUserId(req) }, { client: req.user.clientId }];
     }
 
     const reports = await GeneratedReport.find(filter)

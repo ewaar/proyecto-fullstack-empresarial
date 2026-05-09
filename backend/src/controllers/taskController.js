@@ -22,30 +22,26 @@ const normalizeText = (text) => {
 const getProgressByStatus = (status, progress) => {
   const numericProgress = Number(progress);
 
-  if (status === 'pendiente') {
-    return 0;
-  }
+  if (status === 'pendiente') return 0;
+  if (status === 'completada') return 100;
 
-  if (status === 'completada') {
-    return 100;
-  }
-
-  if (Number.isNaN(numericProgress)) {
-    return null;
-  }
+  if (Number.isNaN(numericProgress)) return null;
 
   if (status === 'en progreso') {
-    if (numericProgress <= 0 || numericProgress >= 100) {
-      return null;
-    }
-
+    if (numericProgress <= 0 || numericProgress >= 100) return null;
     return numericProgress;
   }
 
   return numericProgress;
 };
 
-const validateTaskData = async (data, currentTaskId = null) => {
+const getActionType = (status) => {
+  if (status === 'pendiente') return 'creacion';
+  if (status === 'completada') return 'finalizacion';
+  return 'seguimiento';
+};
+
+const validateTaskData = async (data) => {
   const {
     title,
     description,
@@ -102,18 +98,10 @@ const validateTaskData = async (data, currentTaskId = null) => {
   const finalProgress = getProgressByStatus(status, progress);
 
   if (finalProgress === null) {
-    if (status === 'en progreso') {
-      return {
-        valid: false,
-        statusCode: 400,
-        message: 'Las tareas en progreso deben tener un porcentaje entre 1% y 99%'
-      };
-    }
-
     return {
       valid: false,
       statusCode: 400,
-      message: 'El progreso debe estar entre 0 y 100'
+      message: 'Las tareas en progreso deben tener un porcentaje entre 1% y 99%'
     };
   }
 
@@ -134,28 +122,6 @@ const validateTaskData = async (data, currentTaskId = null) => {
       valid: false,
       statusCode: 404,
       message: 'Usuario responsable no encontrado'
-    };
-  }
-
-  const duplicateFilter = {
-    title: normalizedTitle,
-    project
-  };
-
-  if (currentTaskId) {
-    duplicateFilter._id = { $ne: currentTaskId };
-  }
-
-  const existingTask = await Task.findOne(duplicateFilter).collation({
-    locale: 'en',
-    strength: 2
-  });
-
-  if (existingTask) {
-    return {
-      valid: false,
-      statusCode: 400,
-      message: 'Ya existe una tarea con ese título en este proyecto'
     };
   }
 
@@ -185,8 +151,31 @@ const createTask = async (req, res) => {
       });
     }
 
-    const newTask = new Task(validation.normalizedData);
+    const existingInitialTask = await Task.findOne({
+      title: validation.normalizedData.title,
+      project: validation.normalizedData.project,
+      version: 1
+    }).collation({ locale: 'en', strength: 2 });
 
+    if (existingInitialTask) {
+      return res.status(400).json({
+        message: 'Ya existe una tarea inicial con ese título en este proyecto'
+      });
+    }
+
+    const newTask = new Task({
+      ...validation.normalizedData,
+      parentTask: null,
+      previousTask: null,
+      version: 1,
+      followUpDate: new Date(),
+      isLatest: true,
+      actionType: getActionType(validation.normalizedData.status)
+    });
+
+    await newTask.save();
+
+    newTask.parentTask = newTask._id;
     await newTask.save();
 
     const populatedTask = await Task.findById(newTask._id)
@@ -204,7 +193,7 @@ const createTask = async (req, res) => {
       task: populatedTask._id,
       user: getUserId(req),
       action: 'Tarea creada',
-      description: `Se creó la tarea "${populatedTask.title}" en el proyecto "${populatedTask.project?.name || 'No definido'}"`,
+      description: `Se creó la tarea "${populatedTask.title}" en estado "${populatedTask.status}" con ${populatedTask.progress}% de avance`,
       module: 'tasks',
       type: 'task_created',
       newValue: populatedTask.title
@@ -215,12 +204,6 @@ const createTask = async (req, res) => {
       task: populatedTask
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        message: 'Ya existe una tarea con ese título en este proyecto'
-      });
-    }
-
     res.status(500).json({
       message: 'Error al crear tarea',
       error: error.message
@@ -230,35 +213,35 @@ const createTask = async (req, res) => {
 
 const getTasks = async (req, res) => {
   try {
-    let tasks;
+    let filter = {};
+
+    if (req.query.latest === 'true') {
+      filter.isLatest = true;
+    }
+
+    if (req.query.project) {
+      filter.project = req.query.project;
+    }
+
+    let tasks = await Task.find(filter)
+      .populate('responsible', 'name email role')
+      .populate({
+        path: 'project',
+        populate: {
+          path: 'client'
+        }
+      })
+      .populate('parentTask', 'title')
+      .populate('previousTask', 'title status progress version followUpDate')
+      .sort({ parentTask: 1, version: 1, followUpDate: 1 });
 
     if (req.user.role === 'client') {
-      tasks = await Task.find()
-        .populate('responsible', 'name email role')
-        .populate({
-          path: 'project',
-          populate: {
-            path: 'client'
-          }
-        })
-        .sort({ createdAt: -1 });
-
       tasks = tasks.filter(
         (task) =>
           task.project &&
           task.project.client &&
           task.project.client._id.toString() === req.user.clientId?.toString()
       );
-    } else {
-      tasks = await Task.find()
-        .populate('responsible', 'name email role')
-        .populate({
-          path: 'project',
-          populate: {
-            path: 'client'
-          }
-        })
-        .sort({ createdAt: -1 });
     }
 
     res.json(tasks);
@@ -279,7 +262,9 @@ const getTaskById = async (req, res) => {
         populate: {
           path: 'client'
         }
-      });
+      })
+      .populate('parentTask', 'title')
+      .populate('previousTask', 'title status progress version followUpDate');
 
     if (!task) {
       return res.status(404).json({
@@ -322,7 +307,7 @@ const updateTask = async (req, res) => {
       });
     }
 
-    const validation = await validateTaskData(req.body, req.params.id);
+    const validation = await validateTaskData(req.body);
 
     if (!validation.valid) {
       return res.status(validation.statusCode).json({
@@ -330,109 +315,90 @@ const updateTask = async (req, res) => {
       });
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      validation.normalizedData,
-      { new: true, runValidators: true }
-    )
+    const parentTaskId = oldTask.parentTask || oldTask._id;
+
+    const latestTask = await Task.findOne({
+      parentTask: parentTaskId,
+      isLatest: true
+    });
+
+    if (latestTask && latestTask._id.toString() !== oldTask._id.toString()) {
+      return res.status(400).json({
+        message: 'Solo puede dar seguimiento a la versión más reciente de la tarea'
+      });
+    }
+
+    await Task.updateMany(
+      { parentTask: parentTaskId },
+      { isLatest: false }
+    );
+
+    const newVersion = Number(oldTask.version || 1) + 1;
+
+    const newTaskVersion = new Task({
+      ...validation.normalizedData,
+      parentTask: parentTaskId,
+      previousTask: oldTask._id,
+      version: newVersion,
+      followUpDate: new Date(),
+      isLatest: true,
+      actionType: getActionType(validation.normalizedData.status)
+    });
+
+    await newTaskVersion.save();
+
+    const populatedTask = await Task.findById(newTaskVersion._id)
       .populate('responsible', 'name email role')
       .populate({
         path: 'project',
         populate: {
           path: 'client'
         }
-      });
+      })
+      .populate('previousTask', 'title status progress version followUpDate');
 
     const changes = [];
 
-    if (safe(oldTask.title) !== safe(updatedTask.title)) {
-      changes.push(`título de "${oldTask.title}" a "${updatedTask.title}"`);
+    if (safe(oldTask.title) !== safe(populatedTask.title)) {
+      changes.push(`título de "${oldTask.title}" a "${populatedTask.title}"`);
     }
 
-    if (safe(oldTask.description) !== safe(updatedTask.description)) {
+    if (safe(oldTask.description) !== safe(populatedTask.description)) {
       changes.push('descripción actualizada');
     }
 
-    if (safe(oldTask.priority) !== safe(updatedTask.priority)) {
-      changes.push(`prioridad de "${oldTask.priority}" a "${updatedTask.priority}"`);
+    if (safe(oldTask.priority) !== safe(populatedTask.priority)) {
+      changes.push(`prioridad de "${oldTask.priority}" a "${populatedTask.priority}"`);
     }
 
-    if (safe(oldTask.status) !== safe(updatedTask.status)) {
-      changes.push(`estado de "${oldTask.status}" a "${updatedTask.status}"`);
-
-      await createHistory({
-        project: updatedTask.project?._id,
-        client: updatedTask.project?.client?._id,
-        task: updatedTask._id,
-        user: getUserId(req),
-        action: 'Estado de tarea actualizado',
-        description: `Se cambió el estado de la tarea "${updatedTask.title}" de "${oldTask.status}" a "${updatedTask.status}"`,
-        module: 'tasks',
-        type: 'task_status_changed',
-        oldValue: oldTask.status,
-        newValue: updatedTask.status
-      });
+    if (safe(oldTask.status) !== safe(populatedTask.status)) {
+      changes.push(`estado de "${oldTask.status}" a "${populatedTask.status}"`);
     }
 
-    if (Number(oldTask.progress) !== Number(updatedTask.progress)) {
-      changes.push(`progreso de ${oldTask.progress}% a ${updatedTask.progress}%`);
-
-      await createHistory({
-        project: updatedTask.project?._id,
-        client: updatedTask.project?.client?._id,
-        task: updatedTask._id,
-        user: getUserId(req),
-        action: 'Progreso de tarea actualizado',
-        description: `Se cambió el progreso de la tarea "${updatedTask.title}" de ${oldTask.progress}% a ${updatedTask.progress}%`,
-        module: 'tasks',
-        type: 'task_progress_changed',
-        oldValue: `${oldTask.progress}%`,
-        newValue: `${updatedTask.progress}%`
-      });
+    if (Number(oldTask.progress) !== Number(populatedTask.progress)) {
+      changes.push(`progreso de ${oldTask.progress}% a ${populatedTask.progress}%`);
     }
 
-    if (
-      oldTask.responsible?._id?.toString() !== updatedTask.responsible?._id?.toString()
-    ) {
-      changes.push(
-        `responsable de "${oldTask.responsible?.name || 'No asignado'}" a "${updatedTask.responsible?.name || 'No asignado'}"`
-      );
-    }
+    await createHistory({
+      project: populatedTask.project?._id,
+      client: populatedTask.project?.client?._id,
+      task: populatedTask._id,
+      user: getUserId(req),
+      action: 'Seguimiento de tarea registrado',
+      description: `Se registró seguimiento #${populatedTask.version} de la tarea "${populatedTask.title}": ${changes.length ? changes.join(', ') : 'sin cambios principales'}`,
+      module: 'tasks',
+      type: 'task_followup_created',
+      oldValue: `${oldTask.status} - ${oldTask.progress}%`,
+      newValue: `${populatedTask.status} - ${populatedTask.progress}%`
+    });
 
-    if (oldTask.project?._id?.toString() !== updatedTask.project?._id?.toString()) {
-      changes.push(
-        `proyecto de "${oldTask.project?.name || 'No definido'}" a "${updatedTask.project?.name || 'No definido'}"`
-      );
-    }
-
-    if (changes.length > 0) {
-      await createHistory({
-        project: updatedTask.project?._id,
-        client: updatedTask.project?.client?._id,
-        task: updatedTask._id,
-        user: getUserId(req),
-        action: 'Tarea actualizada',
-        description: `Se actualizó la tarea "${updatedTask.title}": ${changes.join(', ')}`,
-        module: 'tasks',
-        type: 'task_updated',
-        oldValue: oldTask.title,
-        newValue: updatedTask.title
-      });
-    }
-
-    res.json({
-      message: 'Tarea actualizada correctamente',
-      task: updatedTask
+    res.status(201).json({
+      message: 'Seguimiento de tarea registrado correctamente',
+      task: populatedTask
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        message: 'Ya existe una tarea con ese título en este proyecto'
-      });
-    }
-
     res.status(500).json({
-      message: 'Error al actualizar tarea',
+      message: 'Error al registrar seguimiento de tarea',
       error: error.message
     });
   }
@@ -440,34 +406,33 @@ const updateTask = async (req, res) => {
 
 const deleteTask = async (req, res) => {
   try {
-    const deletedTask = await Task.findByIdAndDelete(req.params.id)
-      .populate({
-        path: 'project',
-        populate: {
-          path: 'client'
-        }
-      });
+    const task = await Task.findById(req.params.id);
 
-    if (!deletedTask) {
+    if (!task) {
       return res.status(404).json({
         message: 'Tarea no encontrada'
       });
     }
 
+    const parentTaskId = task.parentTask || task._id;
+
+    const deletedTasks = await Task.deleteMany({
+      parentTask: parentTaskId
+    });
+
     await createHistory({
-      project: deletedTask.project?._id,
-      client: deletedTask.project?.client?._id,
-      task: deletedTask._id,
+      project: task.project,
+      task: task._id,
       user: getUserId(req),
       action: 'Tarea eliminada',
-      description: `Se eliminó la tarea "${deletedTask.title}" del proyecto "${deletedTask.project?.name || 'No definido'}"`,
+      description: `Se eliminó la tarea "${task.title}" y todos sus seguimientos (${deletedTasks.deletedCount} registro/s)`,
       module: 'tasks',
       type: 'task_deleted',
-      oldValue: deletedTask.title
+      oldValue: task.title
     });
 
     res.json({
-      message: 'Tarea eliminada correctamente'
+      message: `Tarea eliminada correctamente. Se eliminaron ${deletedTasks.deletedCount} seguimiento(s).`
     });
   } catch (error) {
     res.status(500).json({
