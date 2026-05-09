@@ -8,7 +8,7 @@ export const loginUser = async (emailOrData, passwordValue) => {
   let password = '';
 
   if (typeof emailOrData === 'object' && emailOrData !== null) {
-    email = emailOrData.email || emailOrData.username || '';
+    email = emailOrData.email || '';
     password = emailOrData.password || '';
   } else {
     email = emailOrData || '';
@@ -16,17 +16,11 @@ export const loginUser = async (emailOrData, passwordValue) => {
   }
 
   const response = await axios.post(`${API_URL}/login`, {
-    email,
+    email: email.toLowerCase().trim(),
     password
   });
 
   return response.data;
 };
 
-export const registerUser = async (userData) => {
-  const response = await axios.post(`${API_URL}/register`, userData);
-  return response.data;
-};
-
 export const login = loginUser;
-export const register = registerUser;

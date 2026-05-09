@@ -3,6 +3,9 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { createHistory } = require('../utils/historyLogger');
 
+const allowedPriorities = ['baja', 'media', 'alta'];
+const allowedStatuses = ['pendiente', 'en progreso', 'completada'];
+
 const getUserId = (req) => {
   return req.user?._id || req.user?.id || req.user?.userId;
 };
@@ -12,53 +15,157 @@ const safe = (value, fallback = 'No definido') => {
   return String(value);
 };
 
+const normalizeText = (text) => {
+  return text.trim().replace(/\s+/g, ' ');
+};
+
+const validateProgress = (progress) => {
+  const numericProgress = Number(progress);
+
+  if (Number.isNaN(numericProgress)) {
+    return null;
+  }
+
+  if (numericProgress < 0 || numericProgress > 100) {
+    return null;
+  }
+
+  return numericProgress;
+};
+
+const validateTaskData = async (data, currentTaskId = null) => {
+  const {
+    title,
+    description,
+    responsible,
+    priority,
+    status,
+    progress,
+    project
+  } = data;
+
+  if (!title || !description || !responsible || !priority || !status || !project) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Todos los campos son obligatorios'
+    };
+  }
+
+  const normalizedTitle = normalizeText(title);
+  const normalizedDescription = normalizeText(description);
+
+  if (normalizedTitle.length < 2) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'El título debe tener al menos 2 caracteres'
+    };
+  }
+
+  if (normalizedDescription.length < 5) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'La descripción debe tener al menos 5 caracteres'
+    };
+  }
+
+  if (!allowedPriorities.includes(priority)) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Prioridad no válida'
+    };
+  }
+
+  if (!allowedStatuses.includes(status)) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Estado de tarea no válido'
+    };
+  }
+
+  const numericProgress = validateProgress(progress);
+
+  if (numericProgress === null) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'El progreso debe estar entre 0 y 100'
+    };
+  }
+
+  const existingProject = await Project.findById(project).populate('client');
+
+  if (!existingProject) {
+    return {
+      valid: false,
+      statusCode: 404,
+      message: 'Proyecto no encontrado'
+    };
+  }
+
+  const existingUser = await User.findById(responsible);
+
+  if (!existingUser) {
+    return {
+      valid: false,
+      statusCode: 404,
+      message: 'Usuario responsable no encontrado'
+    };
+  }
+
+  const duplicateFilter = {
+    title: normalizedTitle,
+    project
+  };
+
+  if (currentTaskId) {
+    duplicateFilter._id = { $ne: currentTaskId };
+  }
+
+  const existingTask = await Task.findOne(duplicateFilter).collation({
+    locale: 'en',
+    strength: 2
+  });
+
+  if (existingTask) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Ya existe una tarea con ese título en este proyecto'
+    };
+  }
+
+  return {
+    valid: true,
+    normalizedData: {
+      title: normalizedTitle,
+      description: normalizedDescription,
+      responsible,
+      priority,
+      status,
+      progress: numericProgress,
+      project
+    },
+    existingProject,
+    existingUser
+  };
+};
+
 const createTask = async (req, res) => {
   try {
-    console.log('ENTRÓ A CREATE TASK');
-    console.log('USUARIO EN TOKEN:', req.user);
-    console.log('BODY RECIBIDO:', req.body);
+    const validation = await validateTaskData(req.body);
 
-    const {
-      title,
-      description,
-      responsible,
-      priority,
-      status,
-      progress,
-      project
-    } = req.body;
-
-    if (!title || !description || !responsible || !priority || !status || project === undefined || !project) {
-      return res.status(400).json({
-        message: 'Todos los campos son obligatorios'
+    if (!validation.valid) {
+      return res.status(validation.statusCode).json({
+        message: validation.message
       });
     }
 
-    const existingProject = await Project.findById(project).populate('client');
-
-    if (!existingProject) {
-      return res.status(404).json({
-        message: 'Proyecto no encontrado'
-      });
-    }
-
-    const existingUser = await User.findById(responsible);
-
-    if (!existingUser) {
-      return res.status(404).json({
-        message: 'Usuario responsable no encontrado'
-      });
-    }
-
-    const newTask = new Task({
-      title: title.trim(),
-      description: description.trim(),
-      responsible,
-      priority,
-      status,
-      progress: Number(progress) || 0,
-      project
-    });
+    const newTask = new Task(validation.normalizedData);
 
     await newTask.save();
 
@@ -88,6 +195,12 @@ const createTask = async (req, res) => {
       task: populatedTask
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ya existe una tarea con ese título en este proyecto'
+      });
+    }
+
     res.status(500).json({
       message: 'Error al crear tarea',
       error: error.message
@@ -174,42 +287,6 @@ const getTaskById = async (req, res) => {
 
 const updateTask = async (req, res) => {
   try {
-    console.log('ENTRÓ A UPDATE TASK');
-    console.log('USUARIO EN TOKEN:', req.user);
-    console.log('BODY RECIBIDO:', req.body);
-
-    const {
-      title,
-      description,
-      responsible,
-      priority,
-      status,
-      progress,
-      project
-    } = req.body;
-
-    if (!title || !description || !responsible || !priority || !status || !project) {
-      return res.status(400).json({
-        message: 'Todos los campos son obligatorios'
-      });
-    }
-
-    const existingProject = await Project.findById(project).populate('client');
-
-    if (!existingProject) {
-      return res.status(404).json({
-        message: 'Proyecto no encontrado'
-      });
-    }
-
-    const existingUser = await User.findById(responsible);
-
-    if (!existingUser) {
-      return res.status(404).json({
-        message: 'Usuario responsable no encontrado'
-      });
-    }
-
     const oldTask = await Task.findById(req.params.id)
       .populate('responsible', 'name email role')
       .populate({
@@ -225,17 +302,17 @@ const updateTask = async (req, res) => {
       });
     }
 
+    const validation = await validateTaskData(req.body, req.params.id);
+
+    if (!validation.valid) {
+      return res.status(validation.statusCode).json({
+        message: validation.message
+      });
+    }
+
     const updatedTask = await Task.findByIdAndUpdate(
       req.params.id,
-      {
-        title: title.trim(),
-        description: description.trim(),
-        responsible,
-        priority,
-        status,
-        progress: Number(progress) || 0,
-        project
-      },
+      validation.normalizedData,
       { new: true, runValidators: true }
     )
       .populate('responsible', 'name email role')
@@ -328,6 +405,12 @@ const updateTask = async (req, res) => {
       task: updatedTask
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ya existe una tarea con ese título en este proyecto'
+      });
+    }
+
     res.status(500).json({
       message: 'Error al actualizar tarea',
       error: error.message
@@ -337,9 +420,6 @@ const updateTask = async (req, res) => {
 
 const deleteTask = async (req, res) => {
   try {
-    console.log('ENTRÓ A DELETE TASK');
-    console.log('USUARIO EN TOKEN:', req.user);
-
     const deletedTask = await Task.findByIdAndDelete(req.params.id)
       .populate({
         path: 'project',

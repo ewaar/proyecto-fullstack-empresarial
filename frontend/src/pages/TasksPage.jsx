@@ -123,10 +123,53 @@ function TasksPage() {
   };
 
   const handleChange = (e) => {
+    setError('');
+    setMessage('');
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const validateForm = (payload) => {
+    if (!payload.title.trim()) {
+      return 'El título es obligatorio';
+    }
+
+    if (payload.title.trim().length < 2) {
+      return 'El título debe tener al menos 2 caracteres';
+    }
+
+    if (!payload.description.trim()) {
+      return 'La descripción es obligatoria';
+    }
+
+    if (payload.description.trim().length < 5) {
+      return 'La descripción debe tener al menos 5 caracteres';
+    }
+
+    if (!payload.project) {
+      return 'Debe seleccionar un proyecto';
+    }
+
+    if (!payload.responsible) {
+      return 'Debe seleccionar un responsable';
+    }
+
+    if (!['baja', 'media', 'alta'].includes(payload.priority)) {
+      return 'Prioridad no válida';
+    }
+
+    if (!['pendiente', 'en progreso', 'completada'].includes(payload.status)) {
+      return 'Estado de tarea no válido';
+    }
+
+    if (Number.isNaN(payload.progress) || payload.progress < 0 || payload.progress > 100) {
+      return 'El progreso debe estar entre 0 y 100';
+    }
+
+    return '';
   };
 
   const handleSubmit = async (e) => {
@@ -134,18 +177,22 @@ function TasksPage() {
     setError('');
     setMessage('');
 
+    const payload = {
+      ...formData,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      progress: Number(formData.progress),
+      responsible: isInternal ? getCurrentUserId() : formData.responsible
+    };
+
+    const validationError = validateForm(payload);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
-      const payload = {
-        ...formData,
-        progress: Number(formData.progress),
-        responsible: isInternal ? getCurrentUserId() : formData.responsible
-      };
-
-      if (!payload.title || !payload.description || !payload.project || !payload.responsible) {
-        setError('Todos los campos son obligatorios');
-        return;
-      }
-
       if (editId) {
         await updateTask(editId, payload);
         setMessage('Tarea actualizada correctamente');
@@ -183,6 +230,12 @@ function TasksPage() {
   const handleDelete = async (id) => {
     setError('');
     setMessage('');
+
+    const confirmDelete = window.confirm('¿Seguro que desea eliminar esta tarea?');
+
+    if (!confirmDelete) {
+      return;
+    }
 
     try {
       await deleteTask(id);
@@ -277,8 +330,7 @@ function TasksPage() {
                     <select name="status" value={status} onChange={handleChange}>
                       <option value="pendiente">Pendiente</option>
                       <option value="en progreso">En progreso</option>
-                      <option value="completado">Completado</option>
-                      <option value="cancelado">Cancelado</option>
+                      <option value="completada">Completada</option>
                     </select>
                   </div>
 

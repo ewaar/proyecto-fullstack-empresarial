@@ -41,8 +41,8 @@ export const statusLabels: any = {
   cancelled: 'Cancelado',
   pendiente: 'Pendiente',
   'en progreso': 'En progreso',
-  completado: 'Completado',
-  cancelado: 'Cancelado'
+  completada: 'Completada',
+  finalizado: 'Finalizado'
 };
 
 export const priorityLabels: any = {

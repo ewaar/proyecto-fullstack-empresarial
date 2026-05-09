@@ -437,7 +437,7 @@ export default function AppScreen() {
 
       const payload = buildTaskPayload(task, {
         status: newStatus,
-        progress: newStatus === 'completado' ? 100 : task.progress
+        progress: newStatus === 'completada' ? 100 : task.progress
       });
 
       if (!payload.title || !payload.project || !payload.responsible) {
@@ -474,7 +474,7 @@ export default function AppScreen() {
 
       const payload = buildTaskPayload(task, {
         progress: newProgress,
-        status: newProgress >= 100 ? 'completado' : task.status
+        status: newProgress >= 100 ? 'completada' : task.status
       });
 
       if (!payload.title || !payload.project || !payload.responsible) {

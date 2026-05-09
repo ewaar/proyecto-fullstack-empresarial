@@ -3,12 +3,11 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
-  ScrollView,
   Text,
   TextInput,
   View
 } from 'react-native';
+import AppBackground from '../components/AppBackground';
 import { styles } from '../styles/appStyles';
 import { roleLabels } from '../constants/labels';
 
@@ -175,237 +174,235 @@ export default function UsersScreen({
   };
 
   return (
-    <SafeAreaView style={styles.dashboardPage}>
-      <ScrollView contentContainerStyle={styles.dashboardContainer}>
-        <View style={styles.projectsHeader}>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Volver</Text>
-          </Pressable>
+    <AppBackground>
+      <View style={styles.projectsHeader}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Volver</Text>
+        </Pressable>
 
-          <Text style={styles.dashboardTitle}>Usuarios</Text>
+        <Text style={styles.dashboardTitle}>Usuarios</Text>
 
-          <Text style={styles.dashboardSubtitle}>
-            Agregar, editar y eliminar usuarios del sistema
-          </Text>
+        <Text style={styles.dashboardSubtitle}>
+          Agregar, editar y eliminar usuarios del sistema
+        </Text>
+      </View>
+
+      <View style={styles.reportMainCard}>
+        <Text style={styles.reportTitle}>
+          {editingUser ? 'Editar usuario' : 'Agregar usuario'}
+        </Text>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Nombre</Text>
+          <TextInput
+            value={form.name}
+            onChangeText={(value) => handleChange('name', value)}
+            placeholder="Nombre del usuario"
+            style={styles.input}
+          />
         </View>
 
-        <View style={styles.reportMainCard}>
-          <Text style={styles.reportTitle}>
-            {editingUser ? 'Editar usuario' : 'Agregar usuario'}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Correo</Text>
+          <TextInput
+            value={form.email}
+            onChangeText={(value) => handleChange('email', value)}
+            placeholder="correo@ejemplo.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>
+            {editingUser ? 'Nueva contraseña opcional' : 'Contraseña'}
           </Text>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Nombre</Text>
-            <TextInput
-              value={form.name}
-              onChangeText={(value) => handleChange('name', value)}
-              placeholder="Nombre del usuario"
-              style={styles.input}
-            />
-          </View>
+          <TextInput
+            value={form.password}
+            onChangeText={(value) => handleChange('password', value)}
+            placeholder={
+              editingUser ? 'Dejar vacío para no cambiar' : 'Contraseña'
+            }
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.input}
+          />
+        </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Correo</Text>
-            <TextInput
-              value={form.email}
-              onChangeText={(value) => handleChange('email', value)}
-              placeholder="correo@ejemplo.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.input}
-            />
-          </View>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Rol</Text>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>
-              {editingUser ? 'Nueva contraseña opcional' : 'Contraseña'}
+          <Pressable
+            style={styles.selectOption}
+            onPress={() => {
+              setShowRoleList(!showRoleList);
+              setShowClientList(false);
+            }}
+          >
+            <Text style={styles.selectOptionText}>
+              {getSelectedRoleName()}
             </Text>
+          </Pressable>
 
-            <TextInput
-              value={form.password}
-              onChangeText={(value) => handleChange('password', value)}
-              placeholder={
-                editingUser ? 'Dejar vacío para no cambiar' : 'Contraseña'
-              }
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.input}
-            />
-          </View>
+          {showRoleList && (
+            <View style={styles.selectList}>
+              {roleOptions.map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.selectOption,
+                    form.role === option.value && styles.selectOptionActive
+                  ]}
+                  onPress={() => handleRoleSelect(option.value)}
+                >
+                  <Text
+                    style={[
+                      styles.selectOptionText,
+                      form.role === option.value &&
+                        styles.selectOptionTextActive
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
 
+        {form.role === 'client' && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Rol</Text>
+            <Text style={styles.label}>Cliente asociado</Text>
 
             <Pressable
               style={styles.selectOption}
               onPress={() => {
-                setShowRoleList(!showRoleList);
-                setShowClientList(false);
+                setShowClientList(!showClientList);
+                setShowRoleList(false);
               }}
             >
               <Text style={styles.selectOptionText}>
-                {getSelectedRoleName()}
+                {getSelectedClientName()}
               </Text>
             </Pressable>
 
-            {showRoleList && (
+            {showClientList && (
               <View style={styles.selectList}>
-                {roleOptions.map((option) => (
-                  <Pressable
-                    key={option.value}
-                    style={[
-                      styles.selectOption,
-                      form.role === option.value && styles.selectOptionActive
-                    ]}
-                    onPress={() => handleRoleSelect(option.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.selectOptionText,
-                        form.role === option.value &&
-                          styles.selectOptionTextActive
-                      ]}
-                    >
-                      {option.label}
+                {clients.length === 0 ? (
+                  <View style={styles.emptyMiniBox}>
+                    <Text style={styles.emptyMiniText}>
+                      No hay clientes disponibles.
                     </Text>
-                  </Pressable>
-                ))}
+                  </View>
+                ) : (
+                  clients.map((client) => (
+                    <Pressable
+                      key={client._id}
+                      style={[
+                        styles.selectOption,
+                        form.clientId === client._id &&
+                          styles.selectOptionActive
+                      ]}
+                      onPress={() => {
+                        handleChange('clientId', client._id);
+                        setShowClientList(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.selectOptionText,
+                          form.clientId === client._id &&
+                            styles.selectOptionTextActive
+                        ]}
+                      >
+                        {client.name} - {client.company || 'Sin empresa'}
+                      </Text>
+                    </Pressable>
+                  ))
+                )}
               </View>
             )}
           </View>
+        )}
 
-          {form.role === 'client' && (
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Cliente asociado</Text>
+        <Pressable style={styles.reportButton} onPress={handleSubmit}>
+          <Text style={styles.reportButtonText}>
+            {editingUser ? 'Guardar cambios' : 'Agregar usuario'}
+          </Text>
+        </Pressable>
 
-              <Pressable
-                style={styles.selectOption}
-                onPress={() => {
-                  setShowClientList(!showClientList);
-                  setShowRoleList(false);
-                }}
-              >
-                <Text style={styles.selectOptionText}>
-                  {getSelectedClientName()}
-                </Text>
-              </Pressable>
-
-              {showClientList && (
-                <View style={styles.selectList}>
-                  {clients.length === 0 ? (
-                    <View style={styles.emptyMiniBox}>
-                      <Text style={styles.emptyMiniText}>
-                        No hay clientes disponibles.
-                      </Text>
-                    </View>
-                  ) : (
-                    clients.map((client) => (
-                      <Pressable
-                        key={client._id}
-                        style={[
-                          styles.selectOption,
-                          form.clientId === client._id &&
-                            styles.selectOptionActive
-                        ]}
-                        onPress={() => {
-                          handleChange('clientId', client._id);
-                          setShowClientList(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.selectOptionText,
-                            form.clientId === client._id &&
-                              styles.selectOptionTextActive
-                          ]}
-                        >
-                          {client.name} - {client.company || 'Sin empresa'}
-                        </Text>
-                      </Pressable>
-                    ))
-                  )}
-                </View>
-              )}
-            </View>
-          )}
-
-          <Pressable style={styles.reportButton} onPress={handleSubmit}>
-            <Text style={styles.reportButtonText}>
-              {editingUser ? 'Guardar cambios' : 'Agregar usuario'}
-            </Text>
+        {editingUser && (
+          <Pressable
+            style={[styles.reportButton, styles.reportButtonDisabled]}
+            onPress={resetForm}
+          >
+            <Text style={styles.reportButtonText}>Cancelar edición</Text>
           </Pressable>
+        )}
+      </View>
 
-          {editingUser && (
-            <Pressable
-              style={[styles.reportButton, styles.reportButtonDisabled]}
-              onPress={resetForm}
-            >
-              <Text style={styles.reportButtonText}>Cancelar edición</Text>
-            </Pressable>
-          )}
+      {loadingUsers ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#ffffff" />
+          <Text style={styles.loadingText}>Cargando usuarios...</Text>
         </View>
+      ) : users.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No hay usuarios</Text>
+          <Text style={styles.emptyText}>
+            Todavía no hay usuarios registrados para mostrar.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.projectsList}>
+          {users.map((item) => (
+            <View key={item._id} style={styles.userCard}>
+              <View style={styles.projectTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.projectName}>{item.name}</Text>
 
-        {loadingUsers ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color="#ffffff" />
-            <Text style={styles.loadingText}>Cargando usuarios...</Text>
-          </View>
-        ) : users.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No hay usuarios</Text>
-            <Text style={styles.emptyText}>
-              Todavía no hay usuarios registrados para mostrar.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.projectsList}>
-            {users.map((item) => (
-              <View key={item._id} style={styles.userCard}>
-                <View style={styles.projectTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.projectName}>{item.name}</Text>
+                  <Text style={styles.projectClient}>
+                    Correo: {item.email || 'No definido'}
+                  </Text>
 
-                    <Text style={styles.projectClient}>
-                      Correo: {item.email || 'No definido'}
-                    </Text>
-
-                    <Text style={styles.projectClient}>
-                      Cliente asociado:{' '}
-                      {item.clientId?.name ||
-                        item.clientId?.company ||
-                        'No aplica'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.userRoleBadge}>
-                    <Text style={styles.statusBadgeText}>
-                      {roleLabels[item.role] || item.role}
-                    </Text>
-                  </View>
+                  <Text style={styles.projectClient}>
+                    Cliente asociado:{' '}
+                    {item.clientId?.name ||
+                      item.clientId?.company ||
+                      'No aplica'}
+                  </Text>
                 </View>
 
-                <View style={styles.taskActions}>
-                  <Pressable
-                    style={styles.taskActionButton}
-                    onPress={() => handleEdit(item)}
-                  >
-                    <Text style={styles.taskActionButtonText}>Editar</Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={[styles.taskActionButton, styles.completeButton]}
-                    onPress={() => confirmDelete(item)}
-                  >
-                    <Text style={styles.taskActionButtonText}>Eliminar</Text>
-                  </Pressable>
+                <View style={styles.userRoleBadge}>
+                  <Text style={styles.statusBadgeText}>
+                    {roleLabels[item.role] || item.role}
+                  </Text>
                 </View>
               </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+
+              <View style={styles.taskActions}>
+                <Pressable
+                  style={styles.taskActionButton}
+                  onPress={() => handleEdit(item)}
+                >
+                  <Text style={styles.taskActionButtonText}>Editar</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.taskActionButton, styles.completeButton]}
+                  onPress={() => confirmDelete(item)}
+                >
+                  <Text style={styles.taskActionButtonText}>Eliminar</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </AppBackground>
   );
 }

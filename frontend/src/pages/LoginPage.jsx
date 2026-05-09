@@ -10,18 +10,47 @@ function LoginPage() {
   });
 
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
+
+  const { email, password } = formData;
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+
     if (token) {
       navigate('/dashboard');
     }
   }, [navigate]);
 
-  const { email, password } = formData;
+  const validateEmail = (emailValue) => {
+    return /^\S+@\S+\.\S+$/.test(emailValue);
+  };
+
+  const validateForm = () => {
+    if (!email.trim()) {
+      return 'El correo es obligatorio';
+    }
+
+    if (!validateEmail(email.trim())) {
+      return 'Correo electrónico inválido';
+    }
+
+    if (!password.trim()) {
+      return 'La contraseña es obligatoria';
+    }
+
+    if (password.trim().length < 6) {
+      return 'La contraseña debe tener al menos 6 caracteres';
+    }
+
+    return '';
+  };
 
   const handleChange = (e) => {
+    setError('');
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -32,8 +61,20 @@ function LoginPage() {
     e.preventDefault();
     setError('');
 
+    const validationError = validateForm();
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
-      const data = await loginUser(formData);
+      setLoading(true);
+
+      const data = await loginUser({
+        email: email.toLowerCase().trim(),
+        password
+      });
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
@@ -42,9 +83,11 @@ function LoginPage() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        err.message ||
-        'Error al iniciar sesión'
+          err.message ||
+          'Error al iniciar sesión'
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,6 +111,7 @@ function LoginPage() {
                 placeholder="Ingrese su correo"
                 value={email}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
           </div>
@@ -83,12 +127,13 @@ function LoginPage() {
                 placeholder="Ingrese su contraseña"
                 value={password}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
           </div>
 
-          <button type="submit" className="login-button">
-            INGRESAR
+          <button type="submit" className="login-button" disabled={loading}>
+            {loading ? 'INGRESANDO...' : 'INGRESAR'}
           </button>
         </form>
 

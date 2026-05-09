@@ -55,14 +55,69 @@ function UsersPage() {
     }
   }, [isAdmin]);
 
+  const resetForm = () => {
+    setEditId(null);
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: 'user',
+      clientId: '',
+      status: true
+    });
+  };
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    setError('');
+    setMessage('');
+
+    const { name: fieldName, value } = e.target;
 
     setFormData({
       ...formData,
-      [name]: value,
-      ...(name === 'role' && value !== 'client' ? { clientId: '' } : {})
+      [fieldName]: value,
+      ...(fieldName === 'role' && value !== 'client' ? { clientId: '' } : {})
     });
+  };
+
+  const validateEmail = (emailValue) => {
+    return /^\S+@\S+\.\S+$/.test(emailValue);
+  };
+
+  const validateForm = (payload) => {
+    if (!payload.name.trim()) {
+      return 'El nombre es obligatorio';
+    }
+
+    if (payload.name.trim().length < 2) {
+      return 'El nombre debe tener al menos 2 caracteres';
+    }
+
+    if (!payload.email.trim()) {
+      return 'El correo es obligatorio';
+    }
+
+    if (!validateEmail(payload.email.trim())) {
+      return 'Correo electrónico inválido';
+    }
+
+    if (!editId && !payload.password.trim()) {
+      return 'La contraseña es obligatoria';
+    }
+
+    if (payload.password && payload.password.trim().length < 6) {
+      return 'La contraseña debe tener al menos 6 caracteres';
+    }
+
+    if (!['admin', 'user', 'client'].includes(payload.role)) {
+      return 'Rol inválido';
+    }
+
+    if (payload.role === 'client' && !payload.clientId) {
+      return 'Debe seleccionar un cliente para el usuario cliente';
+    }
+
+    return '';
   };
 
   const handleSubmit = async (e) => {
@@ -70,41 +125,44 @@ function UsersPage() {
     setError('');
     setMessage('');
 
+    const payload = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password,
+      role,
+      clientId: role === 'client' ? clientId : null,
+      status: Boolean(status)
+    };
+
+    const validationError = validateForm(payload);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
       if (editId) {
-        const payload = {
-          name,
-          email,
-          role,
-          clientId: role === 'client' ? clientId : null,
-          status
+        const updatePayload = {
+          name: payload.name,
+          email: payload.email,
+          role: payload.role,
+          clientId: payload.clientId,
+          status: payload.status
         };
 
-        await updateUser(editId, payload);
+        if (payload.password.trim()) {
+          updatePayload.password = payload.password;
+        }
+
+        await updateUser(editId, updatePayload);
         setMessage('Usuario actualizado correctamente');
-        setEditId(null);
       } else {
-        const payload = {
-          name,
-          email,
-          password,
-          role,
-          ...(role === 'client' ? { clientId } : {})
-        };
-
         await createUser(payload);
         setMessage('Usuario creado correctamente');
       }
 
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        role: 'user',
-        clientId: '',
-        status: true
-      });
-
+      resetForm();
       fetchUsers();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al guardar usuario');
@@ -113,12 +171,12 @@ function UsersPage() {
 
   const handleEdit = (userItem) => {
     setFormData({
-      name: userItem.name,
-      email: userItem.email,
+      name: userItem.name || '',
+      email: userItem.email || '',
       password: '',
-      role: userItem.role,
+      role: userItem.role || 'user',
       clientId: userItem.clientId?._id || '',
-      status: userItem.status
+      status: userItem.status !== false
     });
 
     setEditId(userItem._id);
@@ -130,6 +188,12 @@ function UsersPage() {
     setError('');
     setMessage('');
 
+    const confirmDelete = window.confirm('¿Seguro que desea eliminar este usuario?');
+
+    if (!confirmDelete) {
+      return;
+    }
+
     try {
       await deleteUser(id);
       setMessage('Usuario eliminado correctamente');
@@ -140,15 +204,7 @@ function UsersPage() {
   };
 
   const handleCancelEdit = () => {
-    setEditId(null);
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      role: 'user',
-      clientId: '',
-      status: true
-    });
+    resetForm();
     setMessage('');
     setError('');
   };
@@ -180,20 +236,42 @@ function UsersPage() {
               <div className="module-grid">
                 <div className="module-group">
                   <label>Nombre</label>
-                  <input type="text" name="name" placeholder="Ingrese el nombre" value={name} onChange={handleChange} />
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Ingrese el nombre"
+                    value={name}
+                    onChange={handleChange}
+                  />
                 </div>
 
                 <div className="module-group">
                   <label>Correo</label>
-                  <input type="email" name="email" placeholder="Ingrese el correo" value={email} onChange={handleChange} />
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Ingrese el correo"
+                    value={email}
+                    onChange={handleChange}
+                  />
                 </div>
 
-                {!editId && (
-                  <div className="module-group">
-                    <label>Contraseña</label>
-                    <input type="password" name="password" placeholder="Ingrese la contraseña" value={password} onChange={handleChange} />
-                  </div>
-                )}
+                <div className="module-group">
+                  <label>
+                    Contraseña {editId ? '(opcional)' : ''}
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder={
+                      editId
+                        ? 'Dejar vacío para no cambiar'
+                        : 'Ingrese la contraseña'
+                    }
+                    value={password}
+                    onChange={handleChange}
+                  />
+                </div>
 
                 <div className="module-group">
                   <label>Rol</label>
@@ -209,9 +287,10 @@ function UsersPage() {
                     <label>Cliente asociado</label>
                     <select name="clientId" value={clientId} onChange={handleChange}>
                       <option value="">Seleccione un cliente</option>
-                      {clients.map((client) => (
-                        <option key={client._id} value={client._id}>
-                          {client.name} - {client.company}
+
+                      {clients.map((clientItem) => (
+                        <option key={clientItem._id} value={clientItem._id}>
+                          {clientItem.name} - {clientItem.company}
                         </option>
                       ))}
                     </select>
@@ -223,9 +302,14 @@ function UsersPage() {
                   <select
                     name="status"
                     value={status.toString()}
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value === 'true' })
-                    }
+                    onChange={(e) => {
+                      setError('');
+                      setMessage('');
+                      setFormData({
+                        ...formData,
+                        status: e.target.value === 'true'
+                      });
+                    }}
                   >
                     <option value="true">Activo</option>
                     <option value="false">Inactivo</option>
@@ -235,11 +319,18 @@ function UsersPage() {
 
               <div className="module-actions">
                 <button className="image-btn image-btn-add" type="submit">
-                  <img src={editId ? btnEditar : btnAgregar} alt={editId ? 'Editar usuario' : 'Agregar usuario'} />
+                  <img
+                    src={editId ? btnEditar : btnAgregar}
+                    alt={editId ? 'Editar usuario' : 'Agregar usuario'}
+                  />
                 </button>
 
                 {editId && (
-                  <button className="module-btn module-btn-secondary" type="button" onClick={handleCancelEdit}>
+                  <button
+                    className="module-btn module-btn-secondary"
+                    type="button"
+                    onClick={handleCancelEdit}
+                  >
                     Cancelar
                   </button>
                 )}
@@ -266,6 +357,7 @@ function UsersPage() {
                     <th>Acciones</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {users.map((userItem) => (
                     <tr key={userItem._id}>
@@ -281,11 +373,19 @@ function UsersPage() {
                       <td>{userItem.createdAt?.slice(0, 10)}</td>
                       <td>
                         <div className="module-actions">
-                          <button className="image-btn image-btn-edit" type="button" onClick={() => handleEdit(userItem)}>
+                          <button
+                            className="image-btn image-btn-edit"
+                            type="button"
+                            onClick={() => handleEdit(userItem)}
+                          >
                             <img src={btnEditar} alt="Editar usuario" />
                           </button>
 
-                          <button className="image-btn image-btn-delete" type="button" onClick={() => handleDelete(userItem._id)}>
+                          <button
+                            className="image-btn image-btn-delete"
+                            type="button"
+                            onClick={() => handleDelete(userItem._id)}
+                          >
                             <img src={btnEliminar} alt="Eliminar usuario" />
                           </button>
                         </div>

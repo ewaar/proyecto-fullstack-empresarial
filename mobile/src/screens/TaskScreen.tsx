@@ -3,12 +3,11 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
-  ScrollView,
   Text,
   TextInput,
   View
 } from 'react-native';
+import AppBackground from '../components/AppBackground';
 import { styles } from '../styles/appStyles';
 import { priorityLabels, statusLabels } from '../constants/labels';
 
@@ -57,11 +56,10 @@ export default function TasksScreen({
   const [showStatusList, setShowStatusList] = useState(false);
 
   const statusOptions = [
-    { value: 'pendiente', label: 'Pendiente' },
-    { value: 'en progreso', label: 'En progreso' },
-    { value: 'completado', label: 'Completado' },
-    { value: 'cancelado', label: 'Cancelado' }
-  ];
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'en progreso', label: 'En progreso' },
+  { value: 'completada', label: 'Completada' }
+];
 
   const priorityOptions = [
     { value: 'baja', label: 'Baja' },
@@ -147,7 +145,7 @@ export default function TasksScreen({
     setForm((prev) => ({
       ...prev,
       progress: String(newProgress),
-      status: newProgress >= 100 ? 'completado' : prev.status
+      status: newProgress >= 100 ? 'completada' : prev.status
     }));
   };
 
@@ -229,415 +227,413 @@ export default function TasksScreen({
   };
 
   return (
-    <SafeAreaView style={styles.dashboardPage}>
-      <ScrollView contentContainerStyle={styles.dashboardContainer}>
-        <View style={styles.projectsHeader}>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Volver</Text>
-          </Pressable>
+    <AppBackground>
+      <View style={styles.projectsHeader}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Volver</Text>
+        </Pressable>
 
-          <Text style={styles.dashboardTitle}>
-            {user?.role === 'client' ? 'Mis Tareas' : 'Tareas'}
+        <Text style={styles.dashboardTitle}>
+          {user?.role === 'client' ? 'Mis Tareas' : 'Tareas'}
+        </Text>
+
+        <Text style={styles.dashboardSubtitle}>
+          Agregar, editar, eliminar y dar seguimiento a tareas
+        </Text>
+      </View>
+
+      {canManageTasks && (
+        <View style={styles.reportMainCard}>
+          <Text style={styles.reportTitle}>
+            {editingTask ? 'Editar tarea' : 'Agregar tarea'}
           </Text>
 
-          <Text style={styles.dashboardSubtitle}>
-            Agregar, editar, eliminar y dar seguimiento a tareas
-          </Text>
-        </View>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Título</Text>
+            <TextInput
+              value={form.title}
+              onChangeText={(value) => handleChange('title', value)}
+              placeholder="Título de la tarea"
+              style={styles.input}
+            />
+          </View>
 
-        {canManageTasks && (
-          <View style={styles.reportMainCard}>
-            <Text style={styles.reportTitle}>
-              {editingTask ? 'Editar tarea' : 'Agregar tarea'}
-            </Text>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Descripción</Text>
+            <TextInput
+              value={form.description}
+              onChangeText={(value) => handleChange('description', value)}
+              placeholder="Descripción de la tarea"
+              multiline
+              style={[styles.input, styles.textArea]}
+            />
+          </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Título</Text>
-              <TextInput
-                value={form.title}
-                onChangeText={(value) => handleChange('title', value)}
-                placeholder="Título de la tarea"
-                style={styles.input}
-              />
-            </View>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Proyecto</Text>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Descripción</Text>
-              <TextInput
-                value={form.description}
-                onChangeText={(value) => handleChange('description', value)}
-                placeholder="Descripción de la tarea"
-                multiline
-                style={[styles.input, styles.textArea]}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Proyecto</Text>
-
-              <Pressable
-                style={styles.selectOption}
-                onPress={() => {
-                  setShowProjectList(!showProjectList);
-                  setShowResponsibleList(false);
-                  setShowPriorityList(false);
-                  setShowStatusList(false);
-                }}
-              >
-                <Text style={styles.selectOptionText}>
-                  {getSelectedProjectName()}
-                </Text>
-              </Pressable>
-
-              {showProjectList && (
-                <View style={styles.selectList}>
-                  {projects.length === 0 ? (
-                    <View style={styles.emptyMiniBox}>
-                      <Text style={styles.emptyMiniText}>
-                        No hay proyectos disponibles. Primero agregue un proyecto.
-                      </Text>
-                    </View>
-                  ) : (
-                    projects.map((project) => (
-                      <Pressable
-                        key={project._id}
-                        style={[
-                          styles.selectOption,
-                          form.project === project._id && styles.selectOptionActive
-                        ]}
-                        onPress={() => {
-                          handleChange('project', project._id);
-                          setShowProjectList(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.selectOptionText,
-                            form.project === project._id &&
-                              styles.selectOptionTextActive
-                          ]}
-                        >
-                          {project.name}
-                        </Text>
-                      </Pressable>
-                    ))
-                  )}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Responsable</Text>
-
-              <Pressable
-                style={styles.selectOption}
-                onPress={() => {
-                  setShowResponsibleList(!showResponsibleList);
-                  setShowProjectList(false);
-                  setShowPriorityList(false);
-                  setShowStatusList(false);
-                }}
-              >
-                <Text style={styles.selectOptionText}>
-                  {getSelectedResponsibleName()}
-                </Text>
-              </Pressable>
-
-              {showResponsibleList && (
-                <View style={styles.selectList}>
-                  {internalUsers.length === 0 ? (
-                    <View style={styles.emptyMiniBox}>
-                      <Text style={styles.emptyMiniText}>
-                        No hay usuarios internos disponibles.
-                      </Text>
-                    </View>
-                  ) : (
-                    internalUsers.map((item) => (
-                      <Pressable
-                        key={item._id}
-                        style={[
-                          styles.selectOption,
-                          form.responsible === item._id &&
-                            styles.selectOptionActive
-                        ]}
-                        onPress={() => {
-                          handleChange('responsible', item._id);
-                          setShowResponsibleList(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.selectOptionText,
-                            form.responsible === item._id &&
-                              styles.selectOptionTextActive
-                          ]}
-                        >
-                          {item.name} - {item.role}
-                        </Text>
-                      </Pressable>
-                    ))
-                  )}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Prioridad</Text>
-
-              <Pressable
-                style={styles.selectOption}
-                onPress={() => {
-                  setShowPriorityList(!showPriorityList);
-                  setShowProjectList(false);
-                  setShowResponsibleList(false);
-                  setShowStatusList(false);
-                }}
-              >
-                <Text style={styles.selectOptionText}>
-                  {getSelectedPriorityName()}
-                </Text>
-              </Pressable>
-
-              {showPriorityList && (
-                <View style={styles.selectList}>
-                  {priorityOptions.map((option) => (
-                    <Pressable
-                      key={option.value}
-                      style={[
-                        styles.selectOption,
-                        form.priority === option.value && styles.selectOptionActive
-                      ]}
-                      onPress={() => {
-                        handleChange('priority', option.value);
-                        setShowPriorityList(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.selectOptionText,
-                          form.priority === option.value &&
-                            styles.selectOptionTextActive
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Estado</Text>
-
-              <Pressable
-                style={styles.selectOption}
-                onPress={() => {
-                  setShowStatusList(!showStatusList);
-                  setShowProjectList(false);
-                  setShowResponsibleList(false);
-                  setShowPriorityList(false);
-                }}
-              >
-                <Text style={styles.selectOptionText}>
-                  {getSelectedStatusName()}
-                </Text>
-              </Pressable>
-
-              {showStatusList && (
-                <View style={styles.selectList}>
-                  {statusOptions.map((option) => (
-                    <Pressable
-                      key={option.value}
-                      style={[
-                        styles.selectOption,
-                        form.status === option.value && styles.selectOptionActive
-                      ]}
-                      onPress={() => {
-                        handleChange('status', option.value);
-                        setShowStatusList(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.selectOptionText,
-                          form.status === option.value &&
-                            styles.selectOptionTextActive
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Progreso</Text>
-
-              <View style={styles.progressControls}>
-                <Pressable
-                  style={styles.progressControlButton}
-                  onPress={() => updateProgressValue(-10)}
-                >
-                  <Text style={styles.progressControlText}>-10%</Text>
-                </Pressable>
-
-                <View style={styles.progressValueBox}>
-                  <Text style={styles.progressValueText}>
-                    {Number(form.progress) || 0}%
-                  </Text>
-                </View>
-
-                <Pressable
-                  style={styles.progressControlButton}
-                  onPress={() => updateProgressValue(10)}
-                >
-                  <Text style={styles.progressControlText}>+10%</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <Pressable style={styles.reportButton} onPress={handleSubmit}>
-              <Text style={styles.reportButtonText}>
-                {editingTask ? 'Guardar cambios' : 'Agregar tarea'}
+            <Pressable
+              style={styles.selectOption}
+              onPress={() => {
+                setShowProjectList(!showProjectList);
+                setShowResponsibleList(false);
+                setShowPriorityList(false);
+                setShowStatusList(false);
+              }}
+            >
+              <Text style={styles.selectOptionText}>
+                {getSelectedProjectName()}
               </Text>
             </Pressable>
 
-            {editingTask && (
-              <Pressable
-                style={[styles.reportButton, styles.reportButtonDisabled]}
-                onPress={resetForm}
-              >
-                <Text style={styles.reportButtonText}>Cancelar edición</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {loadingTasks ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color="#ffffff" />
-            <Text style={styles.loadingText}>Cargando tareas...</Text>
-          </View>
-        ) : tasks.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No hay tareas</Text>
-            <Text style={styles.emptyText}>
-              Todavía no hay tareas registradas para mostrar.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.projectsList}>
-            {tasks.map((task) => (
-              <View key={task._id} style={styles.taskCard}>
-                <View style={styles.projectTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.projectName}>{task.title}</Text>
-
-                    <Text style={styles.projectClient}>
-                      Proyecto: {task.project?.name || 'No definido'}
-                    </Text>
-
-                    <Text style={styles.projectClient}>
-                      Responsable:{' '}
-                      {task.responsible?.name ||
-                        task.responsible?.email ||
-                        'No asignado'}
+            {showProjectList && (
+              <View style={styles.selectList}>
+                {projects.length === 0 ? (
+                  <View style={styles.emptyMiniBox}>
+                    <Text style={styles.emptyMiniText}>
+                      No hay proyectos disponibles. Primero agregue un proyecto.
                     </Text>
                   </View>
-
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>
-                      {statusLabels[task.status] || task.status}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.projectDescription}>
-                  {task.description || 'Sin descripción'}
-                </Text>
-
-                <View style={styles.projectInfoGrid}>
-                  <View style={styles.infoBox}>
-                    <Text style={styles.infoLabel}>Prioridad</Text>
-                    <Text style={styles.infoValue}>
-                      {priorityLabels[task.priority] || task.priority}
-                    </Text>
-                  </View>
-
-                  <View style={styles.infoBox}>
-                    <Text style={styles.infoLabel}>Progreso</Text>
-                    <Text style={styles.infoValue}>
-                      {Number(task.progress) || 0}%
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${Math.max(
-                          0,
-                          Math.min(100, Number(task.progress) || 0)
-                        )}%`
-                      }
-                    ]}
-                  />
-                </View>
-
-                {canManageTasks && (
-                  <View style={styles.taskActions}>
+                ) : (
+                  projects.map((project) => (
                     <Pressable
-                      style={styles.taskActionButton}
-                      onPress={() => onIncreaseProgress(task)}
+                      key={project._id}
+                      style={[
+                        styles.selectOption,
+                        form.project === project._id && styles.selectOptionActive
+                      ]}
+                      onPress={() => {
+                        handleChange('project', project._id);
+                        setShowProjectList(false);
+                      }}
                     >
-                      <Text style={styles.taskActionButtonText}>
-                        +10% avance
+                      <Text
+                        style={[
+                          styles.selectOptionText,
+                          form.project === project._id &&
+                            styles.selectOptionTextActive
+                        ]}
+                      >
+                        {project.name}
                       </Text>
                     </Pressable>
-
-                    <Pressable
-                      style={styles.taskActionButton}
-                      onPress={() => onChangeStatus(task, 'en progreso')}
-                    >
-                      <Text style={styles.taskActionButtonText}>
-                        En progreso
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={[styles.taskActionButton, styles.completeButton]}
-                      onPress={() => onChangeStatus(task, 'completado')}
-                    >
-                      <Text style={styles.taskActionButtonText}>
-                        Completar
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={styles.taskActionButton}
-                      onPress={() => handleEdit(task)}
-                    >
-                      <Text style={styles.taskActionButtonText}>Editar</Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={[styles.taskActionButton, styles.completeButton]}
-                      onPress={() => confirmDelete(task)}
-                    >
-                      <Text style={styles.taskActionButtonText}>Eliminar</Text>
-                    </Pressable>
-                  </View>
+                  ))
                 )}
               </View>
-            ))}
+            )}
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Responsable</Text>
+
+            <Pressable
+              style={styles.selectOption}
+              onPress={() => {
+                setShowResponsibleList(!showResponsibleList);
+                setShowProjectList(false);
+                setShowPriorityList(false);
+                setShowStatusList(false);
+              }}
+            >
+              <Text style={styles.selectOptionText}>
+                {getSelectedResponsibleName()}
+              </Text>
+            </Pressable>
+
+            {showResponsibleList && (
+              <View style={styles.selectList}>
+                {internalUsers.length === 0 ? (
+                  <View style={styles.emptyMiniBox}>
+                    <Text style={styles.emptyMiniText}>
+                      No hay usuarios internos disponibles.
+                    </Text>
+                  </View>
+                ) : (
+                  internalUsers.map((item) => (
+                    <Pressable
+                      key={item._id}
+                      style={[
+                        styles.selectOption,
+                        form.responsible === item._id &&
+                          styles.selectOptionActive
+                      ]}
+                      onPress={() => {
+                        handleChange('responsible', item._id);
+                        setShowResponsibleList(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.selectOptionText,
+                          form.responsible === item._id &&
+                            styles.selectOptionTextActive
+                        ]}
+                      >
+                        {item.name} - {item.role}
+                      </Text>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Prioridad</Text>
+
+            <Pressable
+              style={styles.selectOption}
+              onPress={() => {
+                setShowPriorityList(!showPriorityList);
+                setShowProjectList(false);
+                setShowResponsibleList(false);
+                setShowStatusList(false);
+              }}
+            >
+              <Text style={styles.selectOptionText}>
+                {getSelectedPriorityName()}
+              </Text>
+            </Pressable>
+
+            {showPriorityList && (
+              <View style={styles.selectList}>
+                {priorityOptions.map((option) => (
+                  <Pressable
+                    key={option.value}
+                    style={[
+                      styles.selectOption,
+                      form.priority === option.value && styles.selectOptionActive
+                    ]}
+                    onPress={() => {
+                      handleChange('priority', option.value);
+                      setShowPriorityList(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.selectOptionText,
+                        form.priority === option.value &&
+                          styles.selectOptionTextActive
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Estado</Text>
+
+            <Pressable
+              style={styles.selectOption}
+              onPress={() => {
+                setShowStatusList(!showStatusList);
+                setShowProjectList(false);
+                setShowResponsibleList(false);
+                setShowPriorityList(false);
+              }}
+            >
+              <Text style={styles.selectOptionText}>
+                {getSelectedStatusName()}
+              </Text>
+            </Pressable>
+
+            {showStatusList && (
+              <View style={styles.selectList}>
+                {statusOptions.map((option) => (
+                  <Pressable
+                    key={option.value}
+                    style={[
+                      styles.selectOption,
+                      form.status === option.value && styles.selectOptionActive
+                    ]}
+                    onPress={() => {
+                      handleChange('status', option.value);
+                      setShowStatusList(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.selectOptionText,
+                        form.status === option.value &&
+                          styles.selectOptionTextActive
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Progreso</Text>
+
+            <View style={styles.progressControls}>
+              <Pressable
+                style={styles.progressControlButton}
+                onPress={() => updateProgressValue(-10)}
+              >
+                <Text style={styles.progressControlText}>-10%</Text>
+              </Pressable>
+
+              <View style={styles.progressValueBox}>
+                <Text style={styles.progressValueText}>
+                  {Number(form.progress) || 0}%
+                </Text>
+              </View>
+
+              <Pressable
+                style={styles.progressControlButton}
+                onPress={() => updateProgressValue(10)}
+              >
+                <Text style={styles.progressControlText}>+10%</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <Pressable style={styles.reportButton} onPress={handleSubmit}>
+            <Text style={styles.reportButtonText}>
+              {editingTask ? 'Guardar cambios' : 'Agregar tarea'}
+            </Text>
+          </Pressable>
+
+          {editingTask && (
+            <Pressable
+              style={[styles.reportButton, styles.reportButtonDisabled]}
+              onPress={resetForm}
+            >
+              <Text style={styles.reportButtonText}>Cancelar edición</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {loadingTasks ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color="#ffffff" />
+          <Text style={styles.loadingText}>Cargando tareas...</Text>
+        </View>
+      ) : tasks.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No hay tareas</Text>
+          <Text style={styles.emptyText}>
+            Todavía no hay tareas registradas para mostrar.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.projectsList}>
+          {tasks.map((task) => (
+            <View key={task._id} style={styles.taskCard}>
+              <View style={styles.projectTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.projectName}>{task.title}</Text>
+
+                  <Text style={styles.projectClient}>
+                    Proyecto: {task.project?.name || 'No definido'}
+                  </Text>
+
+                  <Text style={styles.projectClient}>
+                    Responsable:{' '}
+                    {task.responsible?.name ||
+                      task.responsible?.email ||
+                      'No asignado'}
+                  </Text>
+                </View>
+
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>
+                    {statusLabels[task.status] || task.status}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.projectDescription}>
+                {task.description || 'Sin descripción'}
+              </Text>
+
+              <View style={styles.projectInfoGrid}>
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoLabel}>Prioridad</Text>
+                  <Text style={styles.infoValue}>
+                    {priorityLabels[task.priority] || task.priority}
+                  </Text>
+                </View>
+
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoLabel}>Progreso</Text>
+                  <Text style={styles.infoValue}>
+                    {Number(task.progress) || 0}%
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.max(
+                        0,
+                        Math.min(100, Number(task.progress) || 0)
+                      )}%`
+                    }
+                  ]}
+                />
+              </View>
+
+              {canManageTasks && (
+                <View style={styles.taskActions}>
+                  <Pressable
+                    style={styles.taskActionButton}
+                    onPress={() => onIncreaseProgress(task)}
+                  >
+                    <Text style={styles.taskActionButtonText}>
+                      +10% avance
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.taskActionButton}
+                    onPress={() => onChangeStatus(task, 'en progreso')}
+                  >
+                    <Text style={styles.taskActionButtonText}>
+                      En progreso
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.taskActionButton, styles.completeButton]}
+                    onPress={() => onChangeStatus(task, 'completado')}
+                  >
+                    <Text style={styles.taskActionButtonText}>
+                      Completar
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.taskActionButton}
+                    onPress={() => handleEdit(task)}
+                  >
+                    <Text style={styles.taskActionButtonText}>Editar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.taskActionButton, styles.completeButton]}
+                    onPress={() => confirmDelete(task)}
+                  >
+                    <Text style={styles.taskActionButtonText}>Eliminar</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+    </AppBackground>
   );
 }

@@ -4,18 +4,20 @@ const taskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: true,
-      trim: true
+      required: [true, 'El título de la tarea es obligatorio'],
+      trim: true,
+      minlength: [2, 'El título debe tener al menos 2 caracteres']
     },
     description: {
       type: String,
-      required: true,
-      trim: true
+      required: [true, 'La descripción es obligatoria'],
+      trim: true,
+      minlength: [5, 'La descripción debe tener al menos 5 caracteres']
     },
     responsible: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true
+      required: [true, 'El responsable es obligatorio']
     },
     priority: {
       type: String,
@@ -29,18 +31,32 @@ const taskSchema = new mongoose.Schema(
     },
     progress: {
       type: Number,
-      min: 0,
-      max: 100,
+      min: [0, 'El progreso no puede ser menor a 0'],
+      max: [100, 'El progreso no puede ser mayor a 100'],
       default: 0
     },
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Project',
-      required: true
+      required: [true, 'El proyecto es obligatorio']
     }
   },
   {
     timestamps: true
+  }
+);
+
+taskSchema.index(
+  {
+    title: 1,
+    project: 1
+  },
+  {
+    unique: true,
+    collation: {
+      locale: 'en',
+      strength: 2
+    }
   }
 );
 

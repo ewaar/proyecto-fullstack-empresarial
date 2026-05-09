@@ -1,13 +1,6 @@
-import {
-  Alert,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  View
-} from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import AppBackground from '../components/AppBackground';
 import { styles } from '../styles/appStyles';
-import { roleLabels } from '../constants/labels';
 
 type DashboardScreenProps = {
   user: any;
@@ -30,92 +23,120 @@ export default function DashboardScreen({
   onOpenUsers,
   onLogout
 }: DashboardScreenProps) {
-  const modulePending = (moduleName: string) => {
-    Alert.alert(
-      'Módulo en desarrollo',
-      `El módulo de ${moduleName} lo agregaremos después.`
-    );
+  const getRoleLabel = () => {
+    if (user?.role === 'admin') return 'Administrador';
+    if (user?.role === 'user') return 'Interno';
+    if (user?.role === 'client') return 'Cliente';
+    return user?.role || 'Usuario';
   };
 
+  const isAdmin = user?.role === 'admin';
+  const isInternal = user?.role === 'user';
+  const isClient = user?.role === 'client';
+
   return (
-    <SafeAreaView style={styles.dashboardPage}>
-      <ScrollView contentContainerStyle={styles.dashboardContainer}>
-        <View style={styles.dashboardHeader}>
-          <View>
-            <Text style={styles.dashboardTitle}>Panel Principal</Text>
-            <Text style={styles.dashboardSubtitle}>
-              Sistema móvil empresarial
-            </Text>
-          </View>
-
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>
-              {roleLabels[user?.role] || user?.role}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeTitle}>
-            Bienvenido, {user?.name || 'Usuario'}
-          </Text>
-
-          <Text style={styles.welcomeText}>
-            Esta app trabaja con el mismo backend de Render y la misma base de
-            datos MongoDB Atlas de la página web.
+    <AppBackground>
+      <View style={styles.dashboardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.dashboardTitle}>Panel Principal</Text>
+          <Text style={styles.dashboardSubtitle}>
+            Sistema móvil empresarial
           </Text>
         </View>
 
-        <View style={styles.menuGrid}>
-          <Pressable style={styles.menuCard} onPress={onOpenProjects}>
-            <Text style={styles.menuIcon}>📁</Text>
-            <Text style={styles.menuTitle}>
-              {user?.role === 'client' ? 'Mis Proyectos' : 'Proyectos'}
-            </Text>
-            <Text style={styles.menuText}>Ver proyectos registrados</Text>
-          </Pressable>
-
-          <Pressable style={styles.menuCard} onPress={onOpenTasks}>
-            <Text style={styles.menuIcon}>✅</Text>
-            <Text style={styles.menuTitle}>
-              {user?.role === 'client' ? 'Mis Tareas' : 'Tareas'}
-            </Text>
-            <Text style={styles.menuText}>Seguimiento de tareas</Text>
-          </Pressable>
-
-          <Pressable style={styles.menuCard} onPress={onOpenHistory}>
-            <Text style={styles.menuIcon}>🕒</Text>
-            <Text style={styles.menuTitle}>Historial</Text>
-            <Text style={styles.menuText}>Bitácora automática</Text>
-          </Pressable>
-
-          <Pressable style={styles.menuCard} onPress={onOpenReports}>
-            <Text style={styles.menuIcon}>📄</Text>
-            <Text style={styles.menuTitle}>Reportes</Text>
-            <Text style={styles.menuText}>Informes PDF</Text>
-          </Pressable>
-
-          {user?.role === 'admin' && (
-            <Pressable style={styles.menuCard} onPress={onOpenUsers}>
-              <Text style={styles.menuIcon}>👥</Text>
-              <Text style={styles.menuTitle}>Usuarios</Text>
-              <Text style={styles.menuText}>Gestión de usuarios</Text>
-            </Pressable>
-          )}
-
-          {(user?.role === 'admin' || user?.role === 'user') && (
-            <Pressable style={styles.menuCard} onPress={onOpenClients}>
-              <Text style={styles.menuIcon}>🏢</Text>
-              <Text style={styles.menuTitle}>Clientes</Text>
-              <Text style={styles.menuText}>Gestión de clientes</Text>
-            </Pressable>
-          )}
+        <View style={styles.roleBadge}>
+          <Text style={styles.roleBadgeText}>{getRoleLabel()}</Text>
         </View>
+      </View>
 
-        <Pressable onPress={onLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+      <View style={styles.welcomeCard}>
+        <Text style={styles.welcomeTitle}>
+          Bienvenido, {user?.name || 'Usuario'}
+        </Text>
+
+        <Text style={styles.welcomeDescription}>
+          Plataforma móvil diseñada para optimizar el seguimiento y control de
+          procesos empresariales.
+        </Text>
+      </View>
+
+      <View style={styles.dashboardMenu}>
+        <Pressable style={styles.dashboardCard} onPress={onOpenProjects}>
+          <Text style={styles.dashboardIcon}>
+            {isClient ? '📁' : '📂'}
+          </Text>
+
+          <Text style={styles.dashboardCardTitle}>
+            {isClient ? 'Mis Proyectos' : 'Proyectos'}
+          </Text>
+
+          <Text style={styles.dashboardCardText}>
+            {isClient
+              ? 'Consulta de proyectos asignados'
+              : 'Control de proyectos registrados'}
+          </Text>
         </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+
+        <Pressable style={styles.dashboardCard} onPress={onOpenTasks}>
+          <Text style={styles.dashboardIcon}>✅</Text>
+
+          <Text style={styles.dashboardCardTitle}>
+            {isClient ? 'Mis Tareas' : 'Tareas'}
+          </Text>
+
+          <Text style={styles.dashboardCardText}>
+            Seguimiento de tareas
+          </Text>
+        </Pressable>
+
+        <Pressable style={styles.dashboardCard} onPress={onOpenHistory}>
+          <Text style={styles.dashboardIcon}>🕘</Text>
+
+          <Text style={styles.dashboardCardTitle}>Historial</Text>
+
+          <Text style={styles.dashboardCardText}>
+            Bitácora automática
+          </Text>
+        </Pressable>
+
+        <Pressable style={styles.dashboardCard} onPress={onOpenReports}>
+          <Text style={styles.dashboardIcon}>📄</Text>
+
+          <Text style={styles.dashboardCardTitle}>Informes</Text>
+
+          <Text style={styles.dashboardCardText}>
+            Reportes PDF generados
+          </Text>
+        </Pressable>
+
+        {(isAdmin || isInternal) && (
+          <Pressable style={styles.dashboardCard} onPress={onOpenClients}>
+            <Text style={styles.dashboardIcon}>👥</Text>
+
+            <Text style={styles.dashboardCardTitle}>Clientes</Text>
+
+            <Text style={styles.dashboardCardText}>
+              Administración de clientes
+            </Text>
+          </Pressable>
+        )}
+
+        {isAdmin && (
+          <Pressable style={styles.dashboardCard} onPress={onOpenUsers}>
+            <Text style={styles.dashboardIcon}>🔐</Text>
+
+            <Text style={styles.dashboardCardTitle}>Usuarios</Text>
+
+            <Text style={styles.dashboardCardText}>
+              Control de accesos
+            </Text>
+          </Pressable>
+        )}
+
+        <Pressable style={styles.logoutCard} onPress={onLogout}>
+          <Text style={styles.logoutCardTitle}>Cerrar sesión</Text>
+        </Pressable>
+      </View>
+    </AppBackground>
   );
 }

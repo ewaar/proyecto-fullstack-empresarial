@@ -36,6 +36,18 @@ function ProjectsPage() {
 
   const { name, description, startDate, endDate, status, client } = formData;
 
+  const resetForm = () => {
+    setEditId(null);
+    setFormData({
+      name: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      status: 'pendiente',
+      client: ''
+    });
+  };
+
   const fetchProjects = async () => {
     try {
       const data = await getProjects();
@@ -56,16 +68,60 @@ function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
+
     if (canManage) {
       fetchClients();
     }
   }, [canManage]);
 
   const handleChange = (e) => {
+    setError('');
+    setMessage('');
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const validateForm = (payload) => {
+    if (!payload.name.trim()) {
+      return 'El nombre del proyecto es obligatorio';
+    }
+
+    if (payload.name.trim().length < 2) {
+      return 'El nombre debe tener al menos 2 caracteres';
+    }
+
+    if (!payload.description.trim()) {
+      return 'La descripción es obligatoria';
+    }
+
+    if (payload.description.trim().length < 5) {
+      return 'La descripción debe tener al menos 5 caracteres';
+    }
+
+    if (!payload.startDate) {
+      return 'La fecha de inicio es obligatoria';
+    }
+
+    if (!payload.endDate) {
+      return 'La fecha de fin es obligatoria';
+    }
+
+    if (new Date(payload.endDate) < new Date(payload.startDate)) {
+      return 'La fecha de fin no puede ser menor a la fecha de inicio';
+    }
+
+    if (!['pendiente', 'en progreso', 'finalizado'].includes(payload.status)) {
+      return 'Estado de proyecto no válido';
+    }
+
+    if (!payload.client) {
+      return 'Debe seleccionar un cliente';
+    }
+
+    return '';
   };
 
   const handleSubmit = async (e) => {
@@ -73,25 +129,29 @@ function ProjectsPage() {
     setError('');
     setMessage('');
 
+    const payload = {
+      ...formData,
+      name: formData.name.trim(),
+      description: formData.description.trim()
+    };
+
+    const validationError = validateForm(payload);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
       if (editId) {
-        await updateProject(editId, formData);
+        await updateProject(editId, payload);
         setMessage('Proyecto actualizado correctamente');
-        setEditId(null);
       } else {
-        await createProject(formData);
+        await createProject(payload);
         setMessage('Proyecto creado correctamente');
       }
 
-      setFormData({
-        name: '',
-        description: '',
-        startDate: '',
-        endDate: '',
-        status: 'pendiente',
-        client: ''
-      });
-
+      resetForm();
       fetchProjects();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al guardar proyecto');
@@ -100,12 +160,12 @@ function ProjectsPage() {
 
   const handleEdit = (project) => {
     setFormData({
-      name: project.name,
-      description: project.description,
+      name: project.name || '',
+      description: project.description || '',
       startDate: project.startDate?.slice(0, 10) || '',
       endDate: project.endDate?.slice(0, 10) || '',
-      status: project.status,
-      client: project.client?._id || ''
+      status: project.status || 'pendiente',
+      client: project.client?._id || project.client || ''
     });
 
     setEditId(project._id);
@@ -117,6 +177,14 @@ function ProjectsPage() {
     setError('');
     setMessage('');
 
+    const confirmDelete = window.confirm(
+      '¿Seguro que desea eliminar este proyecto? También se eliminarán sus tareas relacionadas.'
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
     try {
       await deleteProject(id);
       setMessage('Proyecto eliminado correctamente');
@@ -127,15 +195,7 @@ function ProjectsPage() {
   };
 
   const handleCancelEdit = () => {
-    setEditId(null);
-    setFormData({
-      name: '',
-      description: '',
-      startDate: '',
-      endDate: '',
-      status: 'pendiente',
-      client: ''
-    });
+    resetForm();
     setError('');
     setMessage('');
   };
@@ -158,22 +218,44 @@ function ProjectsPage() {
                 <div className="module-grid">
                   <div className="module-group">
                     <label>Nombre</label>
-                    <input type="text" name="name" placeholder="Ingrese el nombre" value={name} onChange={handleChange} />
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder="Ingrese el nombre"
+                      value={name}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
                     <label>Descripción</label>
-                    <input type="text" name="description" placeholder="Ingrese la descripción" value={description} onChange={handleChange} />
+                    <input
+                      type="text"
+                      name="description"
+                      placeholder="Ingrese la descripción"
+                      value={description}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
                     <label>Fecha Inicio</label>
-                    <input type="date" name="startDate" value={startDate} onChange={handleChange} />
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={startDate}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
                     <label>Fecha Fin</label>
-                    <input type="date" name="endDate" value={endDate} onChange={handleChange} />
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={endDate}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="module-group">
@@ -189,6 +271,7 @@ function ProjectsPage() {
                     <label>Cliente</label>
                     <select name="client" value={client} onChange={handleChange}>
                       <option value="">Seleccione un cliente</option>
+
                       {clients.map((clientItem) => (
                         <option key={clientItem._id} value={clientItem._id}>
                           {clientItem.name} - {clientItem.company}
@@ -200,11 +283,18 @@ function ProjectsPage() {
 
                 <div className="module-actions">
                   <button className="image-btn image-btn-add" type="submit">
-                    <img src={editId ? btnEditar : btnAgregar} alt={editId ? 'Editar' : 'Agregar'} />
+                    <img
+                      src={editId ? btnEditar : btnAgregar}
+                      alt={editId ? 'Editar' : 'Agregar'}
+                    />
                   </button>
 
                   {editId && (
-                    <button className="module-btn module-btn-secondary" type="button" onClick={handleCancelEdit}>
+                    <button
+                      className="module-btn module-btn-secondary"
+                      type="button"
+                      onClick={handleCancelEdit}
+                    >
                       Cancelar
                     </button>
                   )}
@@ -232,23 +322,33 @@ function ProjectsPage() {
                     {canManage && <th>Acciones</th>}
                   </tr>
                 </thead>
+
                 <tbody>
-                  {projects.map((project) => (
-                    <tr key={project._id}>
-                      <td>{project.name}</td>
-                      <td>{project.description}</td>
-                      <td>{project.startDate?.slice(0, 10)}</td>
-                      <td>{project.endDate?.slice(0, 10)}</td>
-                      <td>{project.status}</td>
-                      <td>{project.client?.name || 'Sin cliente'}</td>
+                  {projects.map((projectItem) => (
+                    <tr key={projectItem._id}>
+                      <td>{projectItem.name}</td>
+                      <td>{projectItem.description}</td>
+                      <td>{projectItem.startDate?.slice(0, 10)}</td>
+                      <td>{projectItem.endDate?.slice(0, 10)}</td>
+                      <td>{projectItem.status}</td>
+                      <td>{projectItem.client?.name || 'Sin cliente'}</td>
+
                       {canManage && (
                         <td>
                           <div className="module-actions">
-                            <button className="image-btn image-btn-edit" type="button" onClick={() => handleEdit(project)}>
+                            <button
+                              className="image-btn image-btn-edit"
+                              type="button"
+                              onClick={() => handleEdit(projectItem)}
+                            >
                               <img src={btnEditar} alt="Editar" />
                             </button>
 
-                            <button className="image-btn image-btn-delete" type="button" onClick={() => handleDelete(project._id)}>
+                            <button
+                              className="image-btn image-btn-delete"
+                              type="button"
+                              onClick={() => handleDelete(projectItem._id)}
+                            >
                               <img src={btnEliminar} alt="Eliminar" />
                             </button>
                           </div>

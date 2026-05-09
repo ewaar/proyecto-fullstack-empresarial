@@ -3,6 +3,8 @@ const User = require('../models/User');
 const Client = require('../models/Client');
 const { createHistory } = require('../utils/historyLogger');
 
+const allowedRoles = ['admin', 'user', 'client'];
+
 const getUserId = (req) => {
   return req.user?._id || req.user?.id || req.user?.userId;
 };
@@ -10,6 +12,140 @@ const getUserId = (req) => {
 const safe = (value, fallback = 'No definido') => {
   if (value === null || value === undefined || value === '') return fallback;
   return String(value);
+};
+
+const normalizeText = (text) => {
+  return text.trim().replace(/\s+/g, ' ');
+};
+
+const validateEmail = (email) => {
+  return /^\S+@\S+\.\S+$/.test(email);
+};
+
+const validateUserData = async (data, currentUserId = null, isUpdate = false) => {
+  const { name, email, password, role, clientId, status } = data;
+
+  if (!name || !email || !role) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Nombre, correo y rol son obligatorios'
+    };
+  }
+
+  if (!isUpdate && !password) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'La contraseña es obligatoria'
+    };
+  }
+
+  const normalizedName = normalizeText(name);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  if (normalizedName.length < 2) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'El nombre debe tener al menos 2 caracteres'
+    };
+  }
+
+  if (!validateEmail(normalizedEmail)) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Correo electrónico inválido'
+    };
+  }
+
+  if (password && password.trim() !== '' && password.length < 6) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'La contraseña debe tener al menos 6 caracteres'
+    };
+  }
+
+  if (!allowedRoles.includes(role)) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Rol inválido'
+    };
+  }
+
+  if (role === 'client' && !clientId) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Debe seleccionar un cliente para el usuario cliente'
+    };
+  }
+
+  let clientExists = null;
+
+  if (role === 'client') {
+    clientExists = await Client.findById(clientId);
+
+    if (!clientExists) {
+      return {
+        valid: false,
+        statusCode: 404,
+        message: 'Cliente no encontrado'
+      };
+    }
+
+    const existingClientUserFilter = {
+      role: 'client',
+      clientId
+    };
+
+    if (currentUserId) {
+      existingClientUserFilter._id = { $ne: currentUserId };
+    }
+
+    const existingClientUser = await User.findOne(existingClientUserFilter);
+
+    if (existingClientUser) {
+      return {
+        valid: false,
+        statusCode: 400,
+        message: 'Ese cliente ya tiene un usuario asignado'
+      };
+    }
+  }
+
+  const emailFilter = {
+    email: normalizedEmail
+  };
+
+  if (currentUserId) {
+    emailFilter._id = { $ne: currentUserId };
+  }
+
+  const existingEmail = await User.findOne(emailFilter);
+
+  if (existingEmail) {
+    return {
+      valid: false,
+      statusCode: 400,
+      message: 'Ya existe un usuario con ese correo'
+    };
+  }
+
+  return {
+    valid: true,
+    normalizedData: {
+      name: normalizedName,
+      email: normalizedEmail,
+      role,
+      clientId: role === 'client' ? clientId : null,
+      status: typeof status === 'boolean' ? status : true
+    },
+    clientExists
+  };
 };
 
 const getUsers = async (req, res) => {
@@ -51,59 +187,20 @@ const getUserById = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    console.log('ENTRÓ A CREATE USER');
-    console.log('USUARIO EN TOKEN:', req.user);
-    console.log('BODY RECIBIDO:', req.body);
+    const validation = await validateUserData(req.body, null, false);
 
-    const { name, email, password, role, clientId } = req.body;
-
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({
-        message: 'Nombre, correo, contraseña y rol son obligatorios'
-      });
-    }
-
-    if (!['admin', 'user', 'client'].includes(role)) {
-      return res.status(400).json({
-        message: 'Rol inválido'
-      });
-    }
-
-    if (role === 'client' && !clientId) {
-      return res.status(400).json({
-        message: 'Debe seleccionar un cliente para el usuario cliente'
-      });
-    }
-
-    if (role === 'client') {
-      const clientExists = await Client.findById(clientId);
-
-      if (!clientExists) {
-        return res.status(404).json({
-          message: 'Cliente no encontrado'
-        });
-      }
-    }
-
-    const existingEmail = await User.findOne({
-      email: email.toLowerCase().trim()
-    });
-
-    if (existingEmail) {
-      return res.status(400).json({
-        message: 'Ya existe un usuario con ese correo'
+    if (!validation.valid) {
+      return res.status(validation.statusCode).json({
+        message: validation.message
       });
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
     const newUser = new User({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password: hashedPassword,
-      role,
-      clientId: role === 'client' ? clientId : null
+      ...validation.normalizedData,
+      password: hashedPassword
     });
 
     await newUser.save();
@@ -128,6 +225,12 @@ const createUser = async (req, res) => {
       user: userWithoutPassword
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ya existe un usuario con ese correo'
+      });
+    }
+
     res.status(500).json({
       message: 'Error al crear usuario',
       error: error.message
@@ -137,40 +240,6 @@ const createUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    console.log('ENTRÓ A UPDATE USER');
-    console.log('USUARIO EN TOKEN:', req.user);
-    console.log('BODY RECIBIDO:', req.body);
-
-    const { name, email, password, role, clientId } = req.body;
-
-    if (!name || !email || !role) {
-      return res.status(400).json({
-        message: 'Nombre, correo y rol son obligatorios'
-      });
-    }
-
-    if (!['admin', 'user', 'client'].includes(role)) {
-      return res.status(400).json({
-        message: 'Rol inválido'
-      });
-    }
-
-    if (role === 'client' && !clientId) {
-      return res.status(400).json({
-        message: 'Debe seleccionar un cliente para el usuario cliente'
-      });
-    }
-
-    if (role === 'client') {
-      const clientExists = await Client.findById(clientId);
-
-      if (!clientExists) {
-        return res.status(404).json({
-          message: 'Cliente no encontrado'
-        });
-      }
-    }
-
     const oldUser = await User.findById(req.params.id)
       .select('-password')
       .populate('clientId', 'name email company');
@@ -181,34 +250,27 @@ const updateUser = async (req, res) => {
       });
     }
 
-    const existingEmail = await User.findOne({
-      email: email.toLowerCase().trim(),
-      _id: { $ne: req.params.id }
-    });
+    const validation = await validateUserData(req.body, req.params.id, true);
 
-    if (existingEmail) {
-      return res.status(400).json({
-        message: 'Ya existe un usuario con ese correo'
+    if (!validation.valid) {
+      return res.status(validation.statusCode).json({
+        message: validation.message
       });
     }
 
     const updateData = {
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      role,
-      clientId: role === 'client' ? clientId : null
+      ...validation.normalizedData
     };
 
-    if (password && password.trim() !== '') {
+    if (req.body.password && req.body.password.trim() !== '') {
       const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(password, salt);
+      updateData.password = await bcrypt.hash(req.body.password, salt);
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    )
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true
+    })
       .select('-password')
       .populate('clientId', 'name email company');
 
@@ -233,7 +295,7 @@ const updateUser = async (req, res) => {
       changes.push(`cliente asociado de "${oldClientName}" a "${newClientName}"`);
     }
 
-    if (password && password.trim() !== '') {
+    if (req.body.password && req.body.password.trim() !== '') {
       changes.push('contraseña actualizada');
     }
 
@@ -256,6 +318,12 @@ const updateUser = async (req, res) => {
       user: updatedUser
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ya existe un usuario con ese correo'
+      });
+    }
+
     res.status(500).json({
       message: 'Error al actualizar usuario',
       error: error.message
@@ -265,9 +333,6 @@ const updateUser = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   try {
-    console.log('ENTRÓ A DELETE USER');
-    console.log('USUARIO EN TOKEN:', req.user);
-
     const userToDelete = await User.findById(req.params.id)
       .select('-password')
       .populate('clientId', 'name email company');
@@ -281,6 +346,17 @@ const deleteUser = async (req, res) => {
     if (userToDelete._id.toString() === getUserId(req)?.toString()) {
       return res.status(400).json({
         message: 'No puede eliminar su propio usuario'
+      });
+    }
+
+    const adminCount = await User.countDocuments({
+      role: 'admin',
+      status: true
+    });
+
+    if (userToDelete.role === 'admin' && adminCount <= 1) {
+      return res.status(400).json({
+        message: 'No puede eliminar el único administrador activo'
       });
     }
 

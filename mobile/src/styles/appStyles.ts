@@ -568,5 +568,60 @@ progressValueText: {
   color: '#182235',
   fontWeight: '900',
   fontSize: 15
+},
+backgroundImage: {
+  flex: 1
+},
+dashboardPageWithImage: {
+  flex: 1,
+  backgroundColor: 'rgba(15, 23, 42, 0.72)'
+},
+
+welcomeDescription: {
+  color: '#475569',
+  fontSize: 16,
+  fontWeight: '700',
+  lineHeight: 24
+},
+dashboardMenu: {
+  gap: 18
+},
+dashboardCard: {
+  backgroundColor: 'rgba(255,255,255,0.94)',
+  borderRadius: 28,
+  padding: 24,
+  minHeight: 135,
+  justifyContent: 'center'
+},
+dashboardIcon: {
+  fontSize: 34,
+  marginBottom: 12
+},
+dashboardCardTitle: {
+  color: '#0f172a',
+  fontSize: 25,
+  fontWeight: '900',
+  marginBottom: 6
+},
+dashboardCardText: {
+  color: '#64748b',
+  fontSize: 15,
+  fontWeight: '800'
+},
+logoutCard: {
+  backgroundColor: '#ef4444',
+  borderRadius: 28,
+  padding: 20,
+  alignItems: 'center',
+  marginTop: 4
+},
+logoutCardTitle: {
+  color: '#ffffff',
+  fontSize: 18,
+  fontWeight: '900'
+},
+appOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(15, 23, 42, 0.72)'
 }
 });
