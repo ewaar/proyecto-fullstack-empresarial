@@ -360,13 +360,14 @@ const drawProjectDetail = (doc, project, tasks) => {
   const usableWidth = doc.page.width - MARGIN * 2;
 
   const latestTasks = tasks.filter((task) => task.isLatest);
-  const averageProgress =
-    latestTasks.length > 0
-      ? Math.round(
-          latestTasks.reduce((sum, task) => sum + (Number(task.progress) || 0), 0) /
-            latestTasks.length
-        )
-      : 0;
+  const latestCompletedTask =
+  latestTasks.length > 0
+    ? latestTasks[latestTasks.length - 1]
+    : null;
+
+const averageProgress = latestCompletedTask
+  ? Number(latestCompletedTask.progress || 0)
+  : 0;
 
   doc.roundedRect(x, y, usableWidth, 150, 8).fillAndStroke('#FFFFFF', '#B8D0EE');
   doc.roundedRect(x, y, usableWidth, 42, 8).fill('#EEF5FD');
