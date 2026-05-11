@@ -66,6 +66,7 @@ const historySchema = new mongoose.Schema(
         'task_deleted',
         'task_status_changed',
         'task_progress_changed',
+        'task_followup_created',
 
         'user_created',
         'user_updated',
