@@ -104,6 +104,7 @@ const createClient = async (req, res) => {
 const getClients = async (req, res) => {
   try {
     const clients = await Client.find().sort({ createdAt: -1 });
+
     res.json(clients);
   } catch (error) {
     res.status(500).json({
@@ -243,13 +244,25 @@ const deleteClient = async (req, res) => {
       });
     }
 
-    const projects = await Project.find({ client: client._id });
+    const projects = await Project.find({
+      client: client._id
+    });
 
-    for (const project of projects) {
-      await Task.deleteMany({ project: project._id });
-    }
+    const projectIds = projects.map((project) => project._id);
 
-    await Project.deleteMany({ client: client._id });
+    const totalProjects = projects.length;
+
+    const totalTasks = await Task.countDocuments({
+      project: { $in: projectIds }
+    });
+
+    await Task.deleteMany({
+      project: { $in: projectIds }
+    });
+
+    await Project.deleteMany({
+      client: client._id
+    });
 
     await Client.findByIdAndDelete(req.params.id);
 
@@ -257,14 +270,19 @@ const deleteClient = async (req, res) => {
       client: client._id,
       user: getUserId(req),
       action: 'Cliente eliminado',
-      description: `Se eliminó el cliente "${client.name}"`,
+      description: `Se eliminó el cliente "${client.name}" y también se eliminaron sus relaciones asociadas: ${totalProjects} proyecto(s) y ${totalTasks} tarea(s).`,
       module: 'clients',
       type: 'client_deleted',
-      oldValue: client.name
+      oldValue: client.name,
+      newValue: `Relaciones eliminadas: ${totalProjects} proyecto(s), ${totalTasks} tarea(s)`
     });
 
     res.json({
-      message: 'Cliente eliminado correctamente'
+      message: 'Cliente eliminado correctamente',
+      deletedRelations: {
+        projects: totalProjects,
+        tasks: totalTasks
+      }
     });
   } catch (error) {
     res.status(500).json({
